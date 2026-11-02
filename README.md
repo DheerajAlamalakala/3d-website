@@ -66,3 +66,27 @@ Connect the repository to Vercel with the Next.js framework preset, project root
 ## License
 
 No license is specified. All rights remain with the respective copyright holder unless a license is added.
+
+
+## 3D anatomy assets
+
+The interactive anatomy lab loads three GLB assets from `public/models/`:
+
+- `full-adult-skeleton-standing.glb` — 238 separately named skeletal meshes.
+- `full-body-muscular-system-selected-deep-layer.glb` — individually named muscle structures.
+- `torso-with-removable-organs.glb` — 56 individually named torso and organ meshes.
+
+The models are served locally by Next.js and loaded with Three.js `GLTFLoader`. The viewer supports orbit rotation, zoom, layer visibility and selecting named meshes.
+
+### Install the supplied model pack
+
+Extract `VITAL-FORM-model-assets.zip` at the repository root. It contains the three GLB files under `public/models/` and an asset licence note. Commit the resulting `public/models/` directory to GitHub.
+
+The three Innerscene models are labelled CC0/public domain on their source pages. The supplied Z-Anatomy archive is not part of this model pack: its licence is CC BY-SA 4.0 and its own attribution notes identify some third-party assets with non-commercial restrictions. Check the licence of each extracted Z-Anatomy asset before publishing it.
+
+Model asset pages:
+- https://www.innerscene.com/tools/library/3d-parts/full-adult-skeleton-standing-ade55011
+- https://www.innerscene.com/tools/library/3d-parts/full-body-muscular-system-selected-deep-layer-959a514b
+- https://www.innerscene.com/tools/library/3d-parts/torso-with-removable-organs-1fe1b70a
+
+These models are educational visualisations and are not clinically validated for diagnosis or treatment.
