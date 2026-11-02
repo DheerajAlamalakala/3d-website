@@ -268,9 +268,109 @@ function ThreeExperience() {
       points.add(dot);
     }
 
+    // Atmospheric scan field: a luminous sensor cone and rotating radar rings.
+    const scanBeam = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 2.25, 7.5, 48, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0x58f3e2,
+        transparent: true,
+        opacity: 0.055,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      })
+    );
+    scanBeam.position.set(-1.35, 4.2, 0);
+    boat.add(scanBeam);
+
+    const sensorHalo = new THREE.Mesh(
+      new THREE.TorusGeometry(0.42, 0.018, 8, 64),
+      new THREE.MeshBasicMaterial({ color: 0xc9f77a, transparent: true, opacity: 0.9 })
+    );
+    sensorHalo.position.copy(sensor.position);
+    sensorHalo.rotation.x = Math.PI / 2;
+    boat.add(sensorHalo);
+
+    const radarGroup = new THREE.Group();
+    scene.add(radarGroup);
+    const radarRings: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const ringMesh = new THREE.Mesh(
+        new THREE.RingGeometry(4.2 + i * 1.45, 4.23 + i * 1.45, 128),
+        new THREE.MeshBasicMaterial({
+          color: i === 0 ? 0x9af4e6 : 0x3daaa7,
+          transparent: true,
+          opacity: 0.26 - i * 0.055,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+      ringMesh.rotation.x = -Math.PI / 2;
+      ringMesh.position.y = -1.18 + i * 0.008;
+      radarGroup.add(ringMesh);
+      radarRings.push(ringMesh);
+    }
+
+    // Suspended bioluminescent particles create depth around the craft.
+    const particleCount = 1100;
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleSeeds = new Float32Array(particleCount);
+    for (let i = 0; i < particleCount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 5 + Math.random() * 28;
+      particlePositions[i * 3] = Math.cos(a) * r;
+      particlePositions[i * 3 + 1] = -0.8 + Math.random() * 13;
+      particlePositions[i * 3 + 2] = Math.sin(a) * r;
+      particleSeeds[i] = Math.random() * Math.PI * 2;
+    }
+    const particleGeometry = new THREE.BufferGeometry();
+    particleGeometry.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
+    const particleMaterial = new THREE.PointsMaterial({
+      color: 0x83eadd,
+      size: 0.045,
+      transparent: true,
+      opacity: 0.62,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true
+    });
+    const particleField = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particleField);
+
+    // Long, subtle wake trails behind the twin hulls.
+    const wakeGroup = new THREE.Group();
+    boat.add(wakeGroup);
+    for (const side of [-1, 1]) {
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-2.9, -0.78, side * 0.82),
+        new THREE.Vector3(-4.2, -0.82, side * 1.02),
+        new THREE.Vector3(-6.3, -0.9, side * 1.35),
+        new THREE.Vector3(-8.8, -0.96, side * 1.8)
+      ]);
+      const wake = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 48, 0.018, 5, false),
+        new THREE.MeshBasicMaterial({
+          color: 0x71dcd0,
+          transparent: true,
+          opacity: 0.38,
+          blending: THREE.AdditiveBlending
+        })
+      );
+      wakeGroup.add(wake);
+    }
+
     const clock = new THREE.Clock();
     let animationFrame = 0;
     let currentProgress = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+    let targetPointerX = 0;
+    let targetPointerY = 0;
+    const onPointerMove = (event: PointerEvent) => {
+      targetPointerX = (event.clientX / window.innerWidth - 0.5) * 2;
+      targetPointerY = (event.clientY / window.innerHeight - 0.5) * 2;
+    };
 
     const onScroll = () => {
       const max = Math.max(
@@ -296,6 +396,7 @@ function ThreeExperience() {
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
 
     onScroll();
 
@@ -304,6 +405,8 @@ function ThreeExperience() {
 
       const time = clock.getElapsedTime();
       const p = currentProgress;
+      pointerX = THREE.MathUtils.lerp(pointerX, targetPointerX, 0.025);
+      pointerY = THREE.MathUtils.lerp(pointerY, targetPointerY, 0.025);
 
       const smooth = (v: number) => v * v * (3 - 2 * v);
 
@@ -375,6 +478,22 @@ function ThreeExperience() {
       waterGeometry.computeVertexNormals();
 
       points.rotation.y = time * 0.025;
+      particleField.rotation.y = time * 0.008;
+      const particleArray = particleGeometry.attributes.position.array as Float32Array;
+      for (let i = 0; i < particleCount; i++) {
+        particleArray[i * 3 + 1] = particlePositions[i * 3 + 1] +
+          Math.sin(time * 0.55 + particleSeeds[i]) * 0.22;
+      }
+      particleGeometry.attributes.position.needsUpdate = true;
+      radarRings.forEach((ringMesh, i) => {
+        const pulse = (time * 0.16 + i / 3) % 1;
+        ringMesh.scale.setScalar(0.78 + pulse * 0.42);
+        (ringMesh.material as THREE.MeshBasicMaterial).opacity = (1 - pulse) * 0.22;
+      });
+      sensorHalo.rotation.z = time * 0.7;
+      scanBeam.rotation.y = Math.sin(time * 0.2) * 0.12;
+      camera.position.x += pointerX * 0.55;
+      camera.position.y += pointerY * 0.28;
 
       renderer.render(scene, camera);
     }
@@ -386,7 +505,14 @@ function ThreeExperience() {
 
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("pointermove", onPointerMove);
 
+      particleGeometry.dispose();
+      particleMaterial.dispose();
+      radarRings.forEach((ringMesh) => {
+        ringMesh.geometry.dispose();
+        (ringMesh.material as THREE.Material).dispose();
+      });
       renderer.dispose();
       waterGeometry.dispose();
       waterMaterial.dispose();
