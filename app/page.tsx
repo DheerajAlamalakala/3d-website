@@ -84,75 +84,100 @@ function AnatomyStage() {
     renderer.toneMappingExposure=1;
     host.appendChild(renderer.domElement);
 
-    // A slow, breathing torus of suspended dust — the hero visual.
-    const field=new THREE.Group(); field.position.set(2.35,.05,0); scene.add(field);
+    // An iridescent anatomical "signal core", surrounded by suspended micro-particles.
     const mobile=window.innerWidth<700;
-    const count=mobile?2600:7200;
-    const positions=new Float32Array(count*3);
-    const colors=new Float32Array(count*3);
-    for(let i=0;i<count;i++){
-      const around=Math.random()*Math.PI*2;
-      const tube=Math.random()*Math.PI*2;
-      const tubeRadius=Math.sqrt(Math.random())*(mobile?.57:.68);
-      const major=1.78+(Math.random()-.5)*.18;
-      const ripple=Math.sin(around*3+tube*1.7)*.10;
-      const radius=major+tubeRadius*Math.cos(tube)+ripple;
-      positions[i*3]=Math.cos(around)*radius;
-      positions[i*3+1]=Math.sin(tube)*tubeRadius*.92+Math.sin(around*2)*.10;
-      positions[i*3+2]=Math.sin(around)*radius;
-      const tint=Math.random();
-      colors[i*3]=.62+tint*.34;
-      colors[i*3+1]=.72+tint*.26;
-      colors[i*3+2]=.82+tint*.18;
-    }
-    const ringGeometry=new THREE.BufferGeometry();
-    ringGeometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
-    ringGeometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
-    const ringMaterial=new THREE.PointsMaterial({
-      size:mobile?.023:.018, vertexColors:true, transparent:true, opacity:.82,
-      depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true
-    });
-    const ringPoints=new THREE.Points(ringGeometry,ringMaterial); field.add(ringPoints);
-    const glowMaterial=new THREE.PointsMaterial({
-      size:mobile?.065:.052, color:0x8caedb, transparent:true, opacity:.10,
-      depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true
-    });
-    field.add(new THREE.Points(ringGeometry,glowMaterial));
+    const core=new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1.42, mobile?5:7),
+      new THREE.ShaderMaterial({
+        uniforms:{uTime:{value:0},uPointer:{value:new THREE.Vector2()},uScroll:{value:0}},
+        vertexShader:`
+          varying vec3 vNormal;
+          varying vec3 vPosition;
+          varying vec3 vWorld;
+          uniform float uTime;
+          void main(){
+            vNormal=normalize(normalMatrix*normal);
+            vec3 p=position;
+            float wave=sin(p.y*5.0+uTime*.55)*cos(p.x*4.0-uTime*.32);
+            p+=normal*wave*.025;
+            vPosition=p;
+            vec4 world=modelMatrix*vec4(p,1.0);
+            vWorld=world.xyz;
+            gl_Position=projectionMatrix*viewMatrix*world;
+          }
+        `,
+        fragmentShader:`
+          varying vec3 vNormal;
+          varying vec3 vPosition;
+          varying vec3 vWorld;
+          uniform float uTime;
+          uniform vec2 uPointer;
+          uniform float uScroll;
+          void main(){
+            vec3 n=normalize(vNormal);
+            vec3 viewDir=normalize(cameraPosition-vWorld);
+            float fresnel=pow(1.0-max(dot(n,viewDir),0.0),2.2);
+            float bands=sin(vPosition.y*8.0+vPosition.x*5.0+uTime*.7)*.5+.5;
+            vec3 deep=vec3(.018,.025,.04);
+            vec3 blue=vec3(.12,.34,.48);
+            vec3 violet=vec3(.34,.20,.48);
+            vec3 pearl=vec3(.68,.82,.91);
+            vec3 color=mix(deep,blue,smoothstep(.12,.9,bands)*.55);
+            color=mix(color,violet,smoothstep(.25,.95,n.x*.5+.5)*.38);
+            color=mix(color,pearl,fresnel*.9);
+            color+=vec3(.08,.35,.42)*pow(max(dot(reflect(-viewDir,n),normalize(vec3(.5,.8,1.0))),0.0),7.0);
+            float alpha=.72+fresnel*.28;
+            gl_FragColor=vec4(color,alpha);
+          }
+        `,
+        transparent:true,depthWrite:true
+      })
+    );
+    core.position.set(2.05,.02,0);
+    scene.add(core);
 
-    // Smaller distant particles give the scene scale and depth.
-    const dustCount=mobile?850:2100;
+    const halo=new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1.62,2),
+      new THREE.MeshBasicMaterial({color:0x4f9db4,wireframe:true,transparent:true,opacity:.075,depthWrite:false})
+    );
+    halo.position.copy(core.position);scene.add(halo);
+
+    const dustCount=mobile?1500:4200;
     const dustPositions=new Float32Array(dustCount*3);
     const dustSeeds=new Float32Array(dustCount);
+    const dustColors=new Float32Array(dustCount*3);
     for(let i=0;i<dustCount;i++){
-      dustPositions[i*3]=(Math.random()-.5)*17;
-      dustPositions[i*3+1]=(Math.random()-.5)*9;
-      dustPositions[i*3+2]=(Math.random()-.5)*13-2;
+      const radius=2.0+Math.random()*6.5;
+      const theta=Math.random()*Math.PI*2;
+      const vertical=(Math.random()-.5)*7.5;
+      dustPositions[i*3]=2.0+Math.cos(theta)*radius;
+      dustPositions[i*3+1]=vertical;
+      dustPositions[i*3+2]=Math.sin(theta)*radius-1.5;
       dustSeeds[i]=Math.random()*Math.PI*2;
+      const tint=Math.random();
+      dustColors[i*3]=.45+tint*.35;dustColors[i*3+1]=.62+tint*.3;dustColors[i*3+2]=.75+tint*.25;
     }
     const dustGeometry=new THREE.BufferGeometry();
     dustGeometry.setAttribute("position",new THREE.BufferAttribute(dustPositions,3));
+    dustGeometry.setAttribute("color",new THREE.BufferAttribute(dustColors,3));
     const dust=new THREE.Points(dustGeometry,new THREE.PointsMaterial({
-      color:0xc4d4e9,size:mobile?.012:.01,transparent:true,opacity:.35,
+      size:mobile?.018:.014,vertexColors:true,transparent:true,opacity:.58,
       depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true
     }));
     scene.add(dust);
 
-    // A few very fine filaments are only visible when they catch the light.
-    const filaments=new THREE.Group(); field.add(filaments);
-    for(let j=0;j<3;j++){
-      const curvePoints:THREE.Vector3[]=[];
-      for(let k=0;k<=180;k++){
-        const a=k/180*Math.PI*2;
-        const r=1.78+j*.16;
-        curvePoints.push(new THREE.Vector3(Math.cos(a)*r,Math.sin(a*2+j)*(.19+j*.07),Math.sin(a)*r));
-      }
-      const curve=new THREE.CatmullRomCurve3(curvePoints);
-      const line=new THREE.Mesh(
-        new THREE.TubeGeometry(curve,240,.0025,3,false),
-        new THREE.MeshBasicMaterial({color:j===1?0x8ed7df:0xa3b8d9,transparent:true,opacity:.12,depthWrite:false})
-      );
-      filaments.add(line);
-    }
+    // Cursor trails: a fading, fluid-like filament that follows pointer movement.
+    const trailLength=mobile?54:100;
+    const trailPositions=new Float32Array(trailLength*3);
+    const trailGeometry=new THREE.BufferGeometry();
+    trailGeometry.setAttribute("position",new THREE.BufferAttribute(trailPositions,3));
+    const trailMaterial=new THREE.LineBasicMaterial({color:0x79c9d5,transparent:true,opacity:.48,blending:THREE.AdditiveBlending,depthWrite:false});
+    const trail=new THREE.Line(trailGeometry,trailMaterial);
+    trail.frustumCulled=false;scene.add(trail);
+    const trailPoints:Array<THREE.Vector3>=[];
+    for(let i=0;i<trailLength;i++)trailPoints.push(new THREE.Vector3(0,0,-100));
+    const trailGlow=new THREE.Points(trailGeometry,new THREE.PointsMaterial({color:0xb2e8f2,size:mobile?.035:.025,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false}));
+    scene.add(trailGlow);
 
     let pointerX=0,pointerY=0,targetX=0,targetY=0;
     const clock=new THREE.Clock();
@@ -164,6 +189,11 @@ function AnatomyStage() {
     const onPointer=(event:PointerEvent)=>{
       targetX=(event.clientX/innerWidth-.5)*2;
       targetY=(event.clientY/innerHeight-.5)*2;
+      const rect=renderer.domElement.getBoundingClientRect();
+      const x=((event.clientX-rect.left)/rect.width-.5)*7.5;
+      const y=-((event.clientY-rect.top)/rect.height-.5)*4.5;
+      trailPoints.unshift(new THREE.Vector3(x,y,1.1));
+      if(trailPoints.length>trailLength)trailPoints.pop();
     };
     const resize=()=>{
       const w=host.clientWidth||innerWidth,h=host.clientHeight||innerHeight;
@@ -179,23 +209,33 @@ function AnatomyStage() {
       const t=clock.getElapsedTime(),p=progressRef.current;
       pointerX=THREE.MathUtils.lerp(pointerX,targetX,.035);
       pointerY=THREE.MathUtils.lerp(pointerY,targetY,.035);
-      field.rotation.y=t*.045+pointerX*.17+p*.12;
-      field.rotation.x=Math.sin(t*.13)*.09+pointerY*.09;
-      field.rotation.z=Math.sin(t*.17)*.025;
-      field.position.y=.05+Math.sin(t*.38)*.08-pointerY*.11;
-      dust.rotation.y=-t*.008+pointerX*.025;
-      dust.rotation.x=Math.sin(t*.11)*.018;
+      core.rotation.y=t*.09+pointerX*.12+p*.22;
+      core.rotation.x=Math.sin(t*.19)*.07+pointerY*.1;
+      const shader=core.material as THREE.ShaderMaterial;
+      shader.uniforms.uTime.value=t;
+      shader.uniforms.uPointer.value.set(pointerX,pointerY);
+      shader.uniforms.uScroll.value=p;
+      const pulse=1+Math.sin(t*.72)*.012;
+      core.scale.setScalar(pulse);
+      halo.rotation.copy(core.rotation);halo.rotation.y-=t*.035;
+      halo.scale.setScalar(1+Math.sin(t*.48)*.018);
+      dust.rotation.y=-t*.012+pointerX*.018;
+      dust.rotation.x=Math.sin(t*.1)*.012;
       const dp=dustGeometry.attributes.position.array as Float32Array;
-      for(let i=0;i<dustCount;i++){
-        dp[i*3+1]=dustPositions[i*3+1]+Math.sin(t*.18+dustSeeds[i])*.13;
-      }
+      for(let i=0;i<dustCount;i++)dp[i*3+1]=dustPositions[i*3+1]+Math.sin(t*.22+dustSeeds[i])*.11;
       dustGeometry.attributes.position.needsUpdate=true;
-      camera.position.x=THREE.MathUtils.lerp(camera.position.x,pointerX*.22,.025);
-      camera.position.y=THREE.MathUtils.lerp(camera.position.y,-pointerY*.14,.025);
-      camera.position.z=10.8-p*.45;
-      camera.lookAt(.35,0,0);
+      for(let i=0;i<trailLength;i++){
+        const point=trailPoints[i]||new THREE.Vector3(0,0,-100);
+        trailPositions[i*3]=point.x;trailPositions[i*3+1]=point.y;trailPositions[i*3+2]=point.z;
+      }
+      trailGeometry.attributes.position.needsUpdate=true;
+      trailMaterial.opacity=.2+Math.min(.45,trailPoints.length/trailLength*.45);
+      camera.position.x=THREE.MathUtils.lerp(camera.position.x,pointerX*.2,.025);
+      camera.position.y=THREE.MathUtils.lerp(camera.position.y,-pointerY*.13,.025);
+      camera.position.z=10.2-p*.55;
+      camera.lookAt(.45,0,0);
       renderer.render(scene,camera);
-    });
+    });;
     return()=>{
       renderer.setAnimationLoop(null);
       window.removeEventListener("scroll",onScroll);
