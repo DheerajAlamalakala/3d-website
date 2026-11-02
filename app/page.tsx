@@ -7,10 +7,14 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Activity, ArrowDown, ArrowRight, ArrowUpRight, Brain, Dna, HeartPulse, Menu, Scan, Sparkles, X } from "lucide-react";
 
 const chapters = [
-  { tag: "01 / THE HUMAN FRONTIER", title: "THE HUMAN\nBODY, IN MOTION.", body: "A living architecture of systems, signals and structures. Move closer to the extraordinary design beneath the surface." },
-  { tag: "02 / THE NEURAL NETWORK", title: "A NETWORK\nOF SIGNALS.", body: "Electrical impulses connect thought, movement and sensation in a continuous exchange across the body." },
-  { tag: "03 / THE LIVING ENGINE", title: "LIFE, IN\nEVERY DETAIL.", body: "From circulation to respiration, discover the interconnected systems that sustain human life." },
-  { tag: "04 / BEYOND THE VISIBLE", title: "LOOK CLOSER.\nGO DEEPER.", body: "An interactive exploration of anatomy, where science becomes something you can see, move through and understand." }
+  { tag: "01 / THE HUMAN FRONTIER", title: "THE HUMAN
+BODY, IN MOTION.", body: "A living architecture of systems, signals and structures. Move closer to the extraordinary design beneath the surface." },
+  { tag: "02 / THE NEURAL NETWORK", title: "A NETWORK
+OF SIGNALS.", body: "Electrical impulses connect thought, movement and sensation in a continuous exchange across the body." },
+  { tag: "03 / THE LIVING ENGINE", title: "LIFE, IN
+EVERY DETAIL.", body: "From circulation to respiration, discover the interconnected systems that sustain human life." },
+  { tag: "04 / BEYOND THE VISIBLE", title: "LOOK CLOSER.
+GO DEEPER.", body: "An interactive exploration of anatomy, where science becomes something you can see, move through and understand." }
 ];
 
 const systems = [
@@ -152,9 +156,60 @@ function AnatomyStage() {
     );
     halo.position.copy(core.position);scene.add(halo);
 
+    // Three evolving anatomical environments: neural, vascular and cellular.
+    const environments:THREE.Group[]=[];
+    const makeEnvironment=(kind:number,color:number)=>{
+      const group=new THREE.Group();group.position.copy(core.position);scene.add(group);environments.push(group);
+      const count=kind===0?(mobile?220:520):(mobile?150:340);
+      const pts=new Float32Array(count*3);
+      for(let i=0;i<count;i++){
+        const a=Math.random()*Math.PI*2;
+        if(kind===0){
+          const radius=1.9+Math.random()*2.5;
+          pts[i*3]=Math.cos(a)*radius;pts[i*3+1]=(Math.random()-.5)*4.5;pts[i*3+2]=Math.sin(a)*radius;
+        }else if(kind===1){
+          const u=Math.random()*Math.PI*2,v=Math.random()*Math.PI*2;
+          const major=2.0+Math.random()*.7,tube=.18+Math.random()*.16;
+          pts[i*3]=(major+tube*Math.cos(v))*Math.cos(u);
+          pts[i*3+1]=tube*Math.sin(v)*2.8;
+          pts[i*3+2]=(major+tube*Math.cos(v))*Math.sin(u);
+        }else{
+          const radius=1.9+Math.random()*2.3;
+          const z=(Math.random()-.5)*3.5;
+          pts[i*3]=Math.cos(a)*radius;pts[i*3+1]=Math.sin(a)*radius;pts[i*3+2]=z;
+        }
+      }
+      const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.BufferAttribute(pts,3));
+      const material=new THREE.PointsMaterial({color,size:kind===2?.035:.022,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+      group.add(new THREE.Points(geometry,material));
+      if(kind===0){
+        const lines:number[]=[];
+        for(let i=0;i<count;i+=3){
+          const j=(i+Math.floor(Math.random()*12)+1)%count;
+          lines.push(pts[i*3],pts[i*3+1],pts[i*3+2],pts[j*3],pts[j*3+1],pts[j*3+2]);
+        }
+        const lg=new THREE.BufferGeometry();lg.setAttribute("position",new THREE.Float32BufferAttribute(lines,3));
+        group.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending})));
+      }
+      if(kind===2){
+        for(let i=0;i<9;i++){
+          const r=.28+(i%3)*.22;
+          const shell=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),new THREE.MeshBasicMaterial({color,wireframe:true,transparent:true,opacity:0}));
+          const a=i/9*Math.PI*2;
+          shell.position.set(Math.cos(a)*2.4,Math.sin(a*2)*.7,Math.sin(a)*1.8);
+          group.add(shell);
+        }
+      }
+      return group;
+    };
+    makeEnvironment(0,0x83d9e8);
+    makeEnvironment(1,0xd87991);
+    makeEnvironment(2,0xb4d5b5);
+
     const dustCount=mobile?1500:4200;
     const dustPositions=new Float32Array(dustCount*3);
-    const dustSeeds=new Float32Array(dustCount);\n    const dustSizes=new Float32Array(dustCount);
+    const dustSeeds=new Float32Array(dustCount);
+    const dustSizes=new Float32Array(dustCount);
     const dustColors=new Float32Array(dustCount*3);
     for(let i=0;i<dustCount;i++){
       const radius=2.0+Math.random()*6.5;
@@ -164,12 +219,14 @@ function AnatomyStage() {
       dustPositions[i*3+1]=vertical;
       dustPositions[i*3+2]=Math.sin(theta)*radius-1.5;
       dustSeeds[i]=Math.random()*Math.PI*2;
+      dustSizes[i]=.45+Math.random()*1.5;
       const tint=Math.random();
       dustColors[i*3]=.45+tint*.35;dustColors[i*3+1]=.62+tint*.3;dustColors[i*3+2]=.75+tint*.25;
     }
     const dustGeometry=new THREE.BufferGeometry();
     dustGeometry.setAttribute("position",new THREE.BufferAttribute(dustPositions,3));
-    dustGeometry.setAttribute("color",new THREE.BufferAttribute(dustColors,3));\n    dustGeometry.setAttribute("aSize",new THREE.BufferAttribute(dustSizes,1));
+    dustGeometry.setAttribute("color",new THREE.BufferAttribute(dustColors,3));
+    dustGeometry.setAttribute("aSize",new THREE.BufferAttribute(dustSizes,1));
     const dustMaterial=new THREE.ShaderMaterial({
       uniforms:{uTime:{value:0},uPointer:{value:new THREE.Vector2()},uPixelRatio:{value:Math.min(window.devicePixelRatio||1,1.5)}},
       vertexShader:`
@@ -230,10 +287,16 @@ function AnatomyStage() {
     scene.add(trailGlow);
 
     let pointerX=0,pointerY=0,targetX=0,targetY=0;
+    let scrollVelocity=0,lastScrollY=window.scrollY,lastScrollTime=performance.now();
     const clock=new THREE.Clock();
     const onScroll=()=>{
       const r=section.getBoundingClientRect(),d=Math.max(1,r.height-innerHeight);
       const p=THREE.MathUtils.clamp(-r.top/d,0,1);
+      const now=performance.now(),dt=Math.max(16,now-lastScrollTime);
+      const nextY=window.scrollY;
+      const instantVelocity=THREE.MathUtils.clamp((nextY-lastScrollY)/dt,-3,3);
+      scrollVelocity=THREE.MathUtils.lerp(scrollVelocity,instantVelocity,.24);
+      lastScrollY=nextY;lastScrollTime=now;
       progressRef.current=p;setProgress(p);setChapterIndex(Math.min(3,Math.floor(p*4)));
     };
     const onPointer=(event:PointerEvent)=>{
@@ -259,7 +322,7 @@ function AnatomyStage() {
       const t=clock.getElapsedTime(),p=progressRef.current;
       pointerX=THREE.MathUtils.lerp(pointerX,targetX,.035);
       pointerY=THREE.MathUtils.lerp(pointerY,targetY,.035);
-      core.rotation.y=t*.09+pointerX*.12+p*.22;
+      core.rotation.y=t*.09+pointerX*.12+p*.22+scrollVelocity*.035;
       core.rotation.x=Math.sin(t*.19)*.07+pointerY*.1;
       const shader=core.material as THREE.ShaderMaterial;
       shader.uniforms.uTime.value=t;
@@ -271,9 +334,7 @@ function AnatomyStage() {
       halo.scale.setScalar(1+Math.sin(t*.48)*.018);
       dust.rotation.y=-t*.012+pointerX*.018;
       dust.rotation.x=Math.sin(t*.1)*.012;
-      const dp=dustGeometry.attributes.position.array as Float32Array;
-      for(let i=0;i<dustCount;i++)dp[i*3+1]=dustPositions[i*3+1]+Math.sin(t*.22+dustSeeds[i])*.11;
-      dustGeometry.attributes.position.needsUpdate=true;
+      
       for(let i=0;i<trailLength;i++){
         const point=trailPoints[i]||new THREE.Vector3(0,0,-100);
         trailPositions[i*3]=point.x;trailPositions[i*3+1]=point.y;trailPositions[i*3+2]=point.z;
@@ -282,7 +343,21 @@ function AnatomyStage() {
       trailMaterial.opacity=.2+Math.min(.45,trailPoints.length/trailLength*.45);
       camera.position.x=THREE.MathUtils.lerp(camera.position.x,pointerX*.2,.025);
       camera.position.y=THREE.MathUtils.lerp(camera.position.y,-pointerY*.13,.025);
-      camera.position.z=10.2-p*.85;\n      core.position.x=2.05+Math.sin(p*Math.PI*2)*.18;\n      core.position.y=Math.sin(t*.32)*.075+Math.sin(p*Math.PI)*.12;\n      halo.position.copy(core.position);
+      camera.position.z=10.2-p*.85-Math.abs(scrollVelocity)*.16;
+      camera.rotation.z=THREE.MathUtils.lerp(camera.rotation.z,-scrollVelocity*.045,.06);
+      core.position.x=2.05+Math.sin(p*Math.PI*2)*.18;
+      core.position.y=Math.sin(t*.32)*.075+Math.sin(p*Math.PI)*.12;
+      halo.position.copy(core.position);
+      const chapterMix=[1-THREE.MathUtils.smoothstep(p,.12,.34),THREE.MathUtils.smoothstep(p,.18,.42)*(1-THREE.MathUtils.smoothstep(p,.43,.67)),THREE.MathUtils.smoothstep(p,.58,.84)];
+      environments.forEach((group,index)=>{
+        group.position.copy(core.position);group.rotation.y=t*(index%2?-.12:.1)+pointerX*.08;group.rotation.x=Math.sin(t*.18+index)*.08+pointerY*.04;
+        const mix=chapterMix[index];
+        group.children.forEach(child=>{
+          const mat=child instanceof THREE.Points||child instanceof THREE.LineSegments||child instanceof THREE.Mesh?child.material:null;
+          if(mat){const materials=Array.isArray(mat)?mat:[mat];materials.forEach(m=>{if("opacity" in m)m.opacity=(index===0?.72:index===1?.62:.7)*mix;});}
+        });
+        group.scale.setScalar(.82+mix*.22);
+      });
       camera.lookAt(.45,0,0);
       renderer.render(scene,camera);
     });
@@ -313,7 +388,8 @@ function AnatomyStage() {
       <div className="scene-meta"><span>VITAL/FORM — AN ANATOMICAL STUDY</span><span>FORM · SIGNAL · MOTION</span></div>
       <div className="hero-copy" key={chapterIndex}>
         <p className="eyebrow"><i/>{chapter.tag}</p>
-        <h1>{chapter.title.split("\n").map((line,i)=><span key={line}>{line}{i===0&&<br/>}</span>)}</h1>
+        <h1>{chapter.title.split("
+").map((line,i)=><span key={line}>{line}{i===0&&<br/>}</span>)}</h1>
         <p className="hero-description">{chapter.body}</p>
         <a href="#atlas" className="hero-action">ENTER THE ATLAS <ArrowUpRight size={15}/></a>
       </div>
