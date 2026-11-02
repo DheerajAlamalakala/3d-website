@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: "AQUAVANT — The Ocean Is Our Next Frontier",
   description: "An immersive autonomous marine systems experience. Explore the AQUAVANT platform, mission concepts and intelligent technology for the water.",
   openGraph: {
-    title: "AQUAVANT — Intelligence in Motion",
-    description: "A new perspective on autonomous marine systems, perception and response.",
+    title: "AQUAVANT — The Ocean Is Our Next Frontier",
+    description: "Explore an immersive autonomous marine systems experience built around perception, adaptability and response.",
     type: "website",
   },
 };
