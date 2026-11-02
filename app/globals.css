@@ -260,3 +260,45 @@ button { font: inherit; }
   *, *:before, *:after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .reveal { opacity: 1; transform: none; filter: none; }
 }
+
+
+/* Immersive WebXR controls */
+.xr-launch {
+  position: absolute;
+  z-index: 8;
+  top: 104px;
+  right: 6.4%;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid rgba(112, 227, 212, .48);
+  border-radius: 2px;
+  background: rgba(5, 22, 29, .52);
+  color: var(--aqua);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  font: 8px var(--mono);
+  letter-spacing: .13em;
+  transition: background .25s ease, color .25s ease, border-color .25s ease, opacity .25s ease;
+}
+.xr-launch:hover:not(:disabled) { background: var(--lime); color: var(--night); border-color: var(--lime); }
+.xr-launch:disabled { opacity: .48; cursor: not-allowed; }
+.xr-status {
+  position: absolute;
+  z-index: 8;
+  top: 153px;
+  right: 6.4%;
+  max-width: 230px;
+  color: rgba(198, 225, 215, .54);
+  text-align: right;
+  font: 7px var(--mono);
+  letter-spacing: .12em;
+  pointer-events: none;
+}
+@media (max-width: 700px) {
+  .xr-launch { top: 91px; right: 5%; min-height: 38px; padding: 0 10px; gap: 7px; }
+  .xr-launch span { font-size: 7px; }
+  .xr-status { top: 135px; right: 5%; max-width: 180px; font-size: 6px; }
+}
