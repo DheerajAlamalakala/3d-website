@@ -58,7 +58,7 @@ function ExperienceCanvas(){
    const trailX=pointer.x*4.4,trailY=pointer.y*2.8;trailPoints[0].lerp(new THREE.Vector3(trailX,trailY,1.2),.45);
    for(let i=1;i<trailCount;i++){const previous=trailPoints[i-1],point=trailPoints[i],spring=.17-i*.0009;point.x+=(previous.x-point.x)*spring;point.y+=(previous.y-point.y)*spring;point.z+=(1.2-point.z)*.12;}
    for(let i=0;i<trailCount;i++){const point=trailPoints[i];trailPositions[i*3]=point.x;trailPositions[i*3+1]=point.y;trailPositions[i*3+2]=hasPointer?point.z:-40;}
-   trailGeometry.attributes.position.needsUpdate=true;trailMaterial.opacity=.72*pointerLife;trailGlow.material.opacity=.85*pointerLife;
+   trailGeometry.attributes.position.needsUpdate=true;trailMaterial.opacity=.72*pointerLife;(trailGlow.material as THREE.PointsMaterial).opacity=.85*pointerLife;
    camera.position.x=THREE.MathUtils.lerp(camera.position.x,pointer.x*.18,.025);camera.position.y=THREE.MathUtils.lerp(camera.position.y,pointer.y*.12,.025);camera.position.z=8.7-scrollProgress*.48;camera.lookAt(.35,0,0);bloom.strength=1.02+Math.min(.22,Math.abs(scrollVelocity)*.07);composer.render();
   });
   return()=>{renderer.setAnimationLoop(null);window.removeEventListener("pointermove",onPointer);window.removeEventListener("scroll",onScroll);window.removeEventListener("resize",resize);scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Points||o instanceof THREE.Line){o.geometry.dispose();(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose());}});composer.dispose();envTarget.dispose();pmrem.dispose();renderer.dispose();if(host.contains(renderer.domElement))host.removeChild(renderer.domElement);};
