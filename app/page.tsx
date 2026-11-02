@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Activity, ArrowDown, ArrowRight, ArrowUpRight, Brain, Dna, Eye, HeartPulse, Menu, Microscope, Orbit, Scan, Shield, Sparkles, X, Zap } from "lucide-react";
 
 const chapters = [
@@ -151,6 +153,205 @@ function AnatomyStage() {
   </section>;
 }
 
+
+
+function AnatomyModelExplorer() {
+  const mount = useRef<HTMLDivElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [visible, setVisible] = useState({ skeleton: true, muscles: true, organs: true });
+  const [selected, setSelected] = useState("Select an anatomical structure");
+  const [selectedLayer, setSelectedLayer] = useState("ALL SYSTEMS");
+  const visibilityRef = useRef(visible);
+  useEffect(() => { visibilityRef.current = visible; }, [visible]);
+
+  useEffect(() => {
+    const host = mount.current;
+    if (!host) return;
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    } catch {
+      setLoadError("WebGL is unavailable in this browser.");
+      return;
+    }
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#090a14");
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.01, 100);
+    camera.position.set(2.3, 1.2, 3.2);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.7));
+    renderer.setSize(host.clientWidth, host.clientHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
+    host.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xbfc8ff, 0x171020, 2.1));
+    const key = new THREE.DirectionalLight(0xffffff, 3.2);
+    key.position.set(3, 5, 4); scene.add(key);
+    const rim = new THREE.PointLight(0x8d6bff, 45, 8);
+    rim.position.set(-2, 1.2, -1); scene.add(rim);
+    const cyan = new THREE.PointLight(0x42dfe1, 24, 7);
+    cyan.position.set(2, -0.4, 2); scene.add(cyan);
+
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(1.9, 64), new THREE.MeshBasicMaterial({ color: 0x141629, transparent: true, opacity: .75 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -0.91; scene.add(floor);
+    const grid = new THREE.GridHelper(4, 40, 0x6254a0, 0x29263f);
+    grid.position.y = -0.9;
+    (grid.material as THREE.Material).transparent = true;
+    (grid.material as THREE.Material).opacity = .25;
+    scene.add(grid);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = .06;
+    controls.minDistance = 1.5;
+    controls.maxDistance = 7;
+    controls.target.set(0, 0, 0);
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = .65;
+
+    const loader = new GLTFLoader();
+    const layers: Record<string, THREE.Group> = {};
+    let disposed = false;
+    const files = [
+      { id: "skeleton", url: "/models/full-adult-skeleton-standing.glb", y: -0.875 },
+      { id: "muscles", url: "/models/full-body-muscular-system-selected-deep-layer.glb", y: -0.875 },
+      { id: "organs", url: "/models/torso-with-removable-organs.glb", y: 0.03 }
+    ];
+    const loadModels = async () => {
+      try {
+        await Promise.all(files.map(async (file) => {
+          const gltf = await loader.loadAsync(file.url);
+          if (disposed) {
+            gltf.scene.traverse(o => {
+              if (o instanceof THREE.Mesh) {
+                o.geometry.dispose();
+                const mats = Array.isArray(o.material) ? o.material : [o.material];
+                mats.forEach(m => m.dispose());
+              }
+            });
+            return;
+          }
+          const group = new THREE.Group();
+          group.name = file.id;
+          group.add(gltf.scene);
+          group.position.y = file.y;
+          gltf.scene.traverse((object) => {
+            if (object instanceof THREE.Mesh) {
+              object.castShadow = true;
+              object.receiveShadow = true;
+              object.userData.layer = file.id;
+              object.userData.anatomyName = object.name || "Anatomical structure";
+              if (file.id === "organs") {
+                object.material = Array.isArray(object.material)
+                  ? object.material.map(m => m.clone())
+                  : object.material.clone();
+              }
+            }
+          });
+          layers[file.id] = group;
+          scene.add(group);
+        }));
+        if (!disposed) setLoaded(true);
+      } catch (error) {
+        if (!disposed) setLoadError("Could not load one or more anatomy models. Check that the GLB files are in public/models/.");
+      }
+    };
+    void loadModels();
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const onClick = (event: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(Object.values(layers), true);
+      const hit = hits.find(h => h.object.visible && h.object instanceof THREE.Mesh);
+      if (hit) {
+        const obj = hit.object;
+        setSelected(obj.userData.anatomyName || obj.name || "Anatomical structure");
+        setSelectedLayer(String(obj.userData.layer || "ANATOMY").toUpperCase());
+      }
+    };
+    renderer.domElement.addEventListener("pointerdown", onClick);
+    const resize = () => {
+      const w = host.clientWidth || 1, h = host.clientHeight || 1;
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener("resize", resize);
+    const clock = new THREE.Clock();
+    renderer.setAnimationLoop(() => {
+      const t = clock.getElapsedTime();
+      Object.entries(layers).forEach(([id, group]) => {
+        group.visible = visibilityRef.current[id as keyof typeof visibilityRef.current];
+      });
+      rim.intensity = 38 + Math.sin(t * .7) * 7;
+      controls.update();
+      renderer.render(scene, camera);
+    });
+    resize();
+    return () => {
+      disposed = true;
+      renderer.setAnimationLoop(null);
+      renderer.domElement.removeEventListener("pointerdown", onClick);
+      window.removeEventListener("resize", resize);
+      controls.dispose();
+      scene.traverse(o => {
+        if (o instanceof THREE.Mesh || o instanceof THREE.Points) {
+          o.geometry.dispose();
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach(m => m.dispose());
+        }
+      });
+      renderer.dispose();
+      if (host.contains(renderer.domElement)) host.removeChild(renderer.domElement);
+    };
+  }, []);
+
+  const toggle = (id: keyof typeof visible) => setVisible(v => ({ ...v, [id]: !v[id] }));
+  const reset = () => {
+    setVisible({ skeleton: true, muscles: true, organs: true });
+    setSelected("Select an anatomical structure");
+    setSelectedLayer("ALL SYSTEMS");
+  };
+  return <section className="model-lab" id="model-lab">
+    <div className="model-lab-head">
+      <div><p className="light-label">05 / THE ANATOMICAL LAB</p><h2>INSIDE THE<br/><em>HUMAN FORM.</em></h2></div>
+      <p>Explore real, individually named 3D anatomical structures. Rotate the model, isolate layers and select structures to inspect them.</p>
+    </div>
+    <div className="model-lab-layout">
+      <div className="model-stage-wrap">
+        <div className="model-stage" ref={mount}>
+          {!loaded && !loadError && <div className="model-loading"><span className="loading-pulse"/>LOADING ANATOMICAL MODELS</div>}
+          {loadError && <div className="model-loading model-error">{loadError}</div>}
+        </div>
+        <div className="model-stage-footer"><span>3D MODEL / REAL-WORLD SCALE</span><span>DRAG TO ROTATE · SCROLL TO ZOOM</span></div>
+      </div>
+      <aside className="model-controls">
+        <div className="model-control-top"><span>MODEL LAYERS</span><button onClick={reset}>RESET VIEW ↺</button></div>
+        <p className="model-control-caption">TOGGLE ANATOMICAL SYSTEMS</p>
+        {([
+          ["skeleton", "Skeletal system", "238 anatomical meshes", "#d8d8ed"],
+          ["muscles", "Muscular system", "147 anatomical meshes", "#e7a0a2"],
+          ["organs", "Internal organs", "56 anatomical meshes", "#a78bfa"]
+        ] as const).map(([id, title, detail, color]) => <button key={id} className={"layer-toggle "+(visible[id]?"layer-on":"")} onClick={()=>toggle(id)}>
+          <span className="layer-dot" style={{background:color}}/><span className="layer-text"><strong>{title}</strong><small>{detail}</small></span><span className="layer-switch"><i/></span>
+        </button>)}
+        <div className="selection-card">
+          <span className="selection-kicker">SELECTED STRUCTURE / {selectedLayer}</span>
+          <strong>{selected}</strong>
+          <p>Click an individual structure in the 3D model to inspect its anatomical name.</p>
+        </div>
+        <div className="model-stats"><span><strong>441</strong> SKELETAL + MUSCLE MESHES</span><span><strong>56</strong> ORGAN MESHES</span></div>
+      </aside>
+    </div>
+    <p className="model-attribution">MODEL SOURCES: INNERSCENE · CC0 PUBLIC DOMAIN. EDUCATIONAL VISUALISATION ONLY — NOT FOR DIAGNOSIS.</p>
+  </section>;
+}
+
 export default function Home(){
  const [menu,setMenu]=useState(false),[active,setActive]=useState(0);const item=systems[active];
  useEffect(()=>{const els=Array.from(document.querySelectorAll<HTMLElement>(".reveal"));const io=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("visible");io.unobserve(e.target);}}),{threshold:.12});els.forEach(e=>io.observe(e));return()=>io.disconnect();},[]);
@@ -160,6 +361,7 @@ export default function Home(){
   <AnatomyStage/>
   <section className="intro-section" id="atlas"><div className="section-kicker reveal"><span>01 / THE ANATOMICAL ATLAS</span><span>FORM FOLLOWS FUNCTION</span></div><div className="intro-grid"><div className="reveal"><p className="light-label">A NEW WAY TO SEE YOURSELF</p><h2>NOT JUST<br/>A BODY.<br/><em>A UNIVERSE.</em></h2></div><div className="intro-copy reveal"><span className="accent-rule"/><p>Every movement, every thought, every heartbeat is the result of extraordinary systems working together. VITAL/FORM is an immersive exploration of the human body — from its visible architecture to the invisible signals that bring it to life.</p><a href="#systems" className="text-link">EXPLORE THE SYSTEMS <ArrowRight size={15}/></a><div className="intro-index"><span>01</span><span>HUMAN BIOLOGY / DIGITAL EXPLORATION</span></div></div></div></section>
   <section className="systems-section" id="systems"><div className="systems-heading reveal"><div><p className="light-label">02 / INTERACTIVE SYSTEMS</p><h2>FOUR LAYERS.<br/><em>ONE LIFE.</em></h2></div><p>Choose a system to reveal its role in the living network. This is an educational visual concept, not a diagnostic tool.</p></div><div className="system-explorer"><div className="system-list">{systems.map((s,i)=><button key={s.id} className={i===active?"system-choice active":"system-choice"} onClick={()=>setActive(i)}><span>{s.n}</span><strong>{s.title}</strong><ArrowUpRight size={16}/></button>)}</div><article className="system-detail" key={item.id}><div className="detail-orbit"><div className="orbit-ring ring-one"/><div className="orbit-ring ring-two"/><div className="orbit-ring ring-three"/><div className="detail-core" style={{color:item.color}}><item.icon size={42} strokeWidth={1.2}/></div><span className="orbit-node node-one"/><span className="orbit-node node-two"/></div><div className="detail-copy"><p className="light-label">{item.subtitle}</p><h3>{item.title}<span>.</span></h3><p>{item.text}</p><div className="detail-stat"><span>REFERENCE / {item.n}</span><strong>{item.stat}</strong></div></div></article></div></section>
+  <AnatomyModelExplorer/>
   <section className="microscopic-section"><div className="micro-orb orb-a"/><div className="micro-orb orb-b"/><div className="micro-content reveal"><p className="light-label">03 / SCALE IS RELATIVE</p><h2>FROM THE<br/>ORGAN TO THE<br/><em>INFINITE SMALL.</em></h2><p>Zoom through the scales of human biology. The same principles of structure, signal and adaptation echo from whole-body systems down to the cellular frontier.</p><div className="scale-labels"><span>ORGANISM</span><i/><span>ORGAN</span><i/><span>CELL</span><i/><span>MOLECULE</span></div></div></section>
   <section className="future-section" id="future"><div className="future-top reveal"><span>04 / THE NEXT FRONTIER</span><span>SCIENCE × DESIGN × TECHNOLOGY</span></div><div className="future-main"><div className="future-title reveal"><p className="light-label">A NEW DIMENSION OF UNDERSTANDING</p><h2>THE FUTURE<br/>IS <em>HUMAN.</em></h2></div><div className="future-copy reveal"><Sparkles size={24}/><p>New tools are changing how we visualise, study and understand the body. VITAL/FORM brings anatomy into an interactive digital space — designed to spark curiosity and make complex systems feel tangible.</p><span>SEE THE SYSTEM. UNDERSTAND THE CONNECTION.</span></div></div><div className="future-bottom"><span>VITAL/FORM — AN INTERACTIVE ANATOMY CONCEPT</span><span>BUILT TO EXPLORE WHAT MAKES US, US.</span></div></section>
   <footer className="footer"><div className="footer-top"><span>VITAL/FORM</span><span>THE HUMAN BODY / REIMAGINED</span></div><div className="footer-main reveal"><p className="light-label">ENDLESSLY COMPLEX. BEAUTIFULLY CONNECTED.</p><h2>STAY<br/><em>CURIOUS.</em></h2><a href="#top">BACK TO THE SURFACE <ArrowUpRight size={16}/></a></div><div className="footer-bottom"><span>© 2026 VITAL/FORM — EDUCATIONAL VISUAL CONCEPT</span><span>NOT FOR MEDICAL DIAGNOSIS</span></div></footer>
