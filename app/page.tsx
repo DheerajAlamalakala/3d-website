@@ -7,10 +7,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Activity, ArrowDown, ArrowRight, ArrowUpRight, Brain, Dna, Eye, HeartPulse, Menu, Microscope, Orbit, Scan, Shield, Sparkles, X, Zap } from "lucide-react";
 
 const chapters = [
-  { tag: "01 / THE HUMAN FRONTIER", title: "THE HUMAN\nBODY. REIMAGINED.", body: "A living universe of systems, signals and structures. Explore the extraordinary architecture beneath the surface." },
-  { tag: "02 / THE NEURAL NETWORK", title: "EVERY SIGNAL\nTELLS A STORY.", body: "A vast communication network connects thought, movement and sensation in a continuous exchange of information." },
-  { tag: "03 / THE LIVING ENGINE", title: "PRECISION IN\nEVERY HEARTBEAT.", body: "From circulation to respiration, discover the interconnected systems that sustain human life." },
-  { tag: "04 / BEYOND THE VISIBLE", title: "LOOK CLOSER.\nUNDERSTAND MORE.", body: "A new perspective on anatomy, where science, visualisation and emerging technology meet." }
+  { tag: "01 / THE HUMAN FRONTIER", title: "THE HUMAN\nBODY, IN MOTION.", body: "A living architecture of systems, signals and structures. Move closer to the extraordinary design beneath the surface." },
+  { tag: "02 / THE NEURAL NETWORK", title: "A NETWORK\nOF SIGNALS.", body: "Electrical impulses connect thought, movement and sensation in a continuous exchange across the body." },
+  { tag: "03 / THE LIVING ENGINE", title: "LIFE, IN\nEVERY DETAIL.", body: "From circulation to respiration, discover the interconnected systems that sustain human life." },
+  { tag: "04 / BEYOND THE VISIBLE", title: "LOOK CLOSER.\nGO DEEPER.", body: "An interactive exploration of anatomy, where science becomes something you can see, move through and understand." }
 ];
 
 const systems = [
@@ -34,103 +34,225 @@ function sphere(scene: THREE.Group, position: [number,number,number], scale: [nu
 }
 function AnatomyStage() {
   const mount=useRef<HTMLDivElement>(null), sequence=useRef<HTMLElement>(null);
-  const progressRef=useRef(0), xrRequest=useRef<(() => Promise<void>) | null>(null);
+  const progressRef=useRef(0);
   const [chapterIndex,setChapterIndex]=useState(0), [progress,setProgress]=useState(0);
-  const [xrAvailable,setXrAvailable]=useState(false), [xrActive,setXrActive]=useState(false), [xrStatus,setXrStatus]=useState("IMMERSIVE MODE / STANDBY");
+  const [soundEnabled,setSoundEnabled]=useState(false);
+  const audioEngine=useRef<{ctx:AudioContext;master:GainNode;nodes:AudioNode[]}|null>(null);
+
+  const toggleSound=()=>{
+    if(!audioEngine.current){
+      const AudioContextCtor=window.AudioContext || (window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
+      if(!AudioContextCtor) return;
+      const ctx=new AudioContextCtor();
+      const master=ctx.createGain();
+      master.gain.setValueAtTime(0,ctx.currentTime);
+      master.connect(ctx.destination);
+      const nodes:AudioNode[]=[master];
+      const addTone=(frequency:number,volume:number,detune=0)=>{
+        const oscillator=ctx.createOscillator();
+        const gain=ctx.createGain();
+        oscillator.type="sine"; oscillator.frequency.value=frequency; oscillator.detune.value=detune;
+        gain.gain.value=volume; oscillator.connect(gain); gain.connect(master); oscillator.start();
+        nodes.push(oscillator,gain);
+      };
+      addTone(55,.075,-3); addTone(82.4,.032,4); addTone(110,.012,-2);
+      const length=ctx.sampleRate*3;
+      const buffer=ctx.createBuffer(1,length,ctx.sampleRate);
+      const data=buffer.getChannelData(0);
+      for(let i=0;i<length;i++) data[i]=(Math.random()*2-1)*.5;
+      const noise=ctx.createBufferSource(), filter=ctx.createBiquadFilter(), noiseGain=ctx.createGain();
+      noise.buffer=buffer; noise.loop=true; filter.type="lowpass"; filter.frequency.value=260; filter.Q.value=.4;
+      noiseGain.gain.value=.018; noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(master); noise.start();
+      nodes.push(noise,filter,noiseGain);
+      audioEngine.current={ctx,master,nodes};
+      if(ctx.state==="suspended") void ctx.resume();
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.linearRampToValueAtTime(.72,ctx.currentTime+2.2);
+      setSoundEnabled(true);
+    }else{
+      const {ctx,master}=audioEngine.current;
+      const next=!soundEnabled;
+      if(ctx.state==="suspended" && next) void ctx.resume();
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setTargetAtTime(next?.72:0,ctx.currentTime,.35);
+      setSoundEnabled(next);
+    }
+  };
+
   useEffect(()=>{
     const host=mount.current, section=sequence.current; if(!host||!section)return;
     let renderer:THREE.WebGLRenderer;
     try { renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:"high-performance"}); }
     catch { host.classList.add("no-webgl"); return; }
-    renderer.xr.enabled=true;
-    const scene=new THREE.Scene(); scene.background=new THREE.Color("#070711"); scene.fog=new THREE.FogExp2("#070711",0.018);
-    const camera=new THREE.PerspectiveCamera(36,1,0.1,180); camera.position.set(0,2.5,13);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7)); renderer.setSize(host.clientWidth,host.clientHeight);
-    renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.35;
-    renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; host.appendChild(renderer.domElement);
-    scene.add(new THREE.HemisphereLight(0x9ca8ff,0x17101f,2));
-    const key=new THREE.DirectionalLight(0xe6e4ff,3.4); key.position.set(-5,10,8); key.castShadow=true; scene.add(key);
-    const violet=new THREE.PointLight(0x835cff,95,26,2); violet.position.set(-4,2,1); scene.add(violet);
-    const cyan=new THREE.PointLight(0x38d9df,80,24,2); cyan.position.set(4,1,-3); scene.add(cyan);
-    const floor=new THREE.Mesh(new THREE.CircleGeometry(16,96),new THREE.MeshBasicMaterial({color:0x111326,transparent:true,opacity:.8}));
-    floor.rotation.x=-Math.PI/2; floor.position.y=-3.45; scene.add(floor);
-    const grid=new THREE.GridHelper(38,48,0x413b70,0x25243e); grid.position.y=-3.42; (grid.material as THREE.Material).transparent=true; (grid.material as THREE.Material).opacity=.28; scene.add(grid);
+    const scene=new THREE.Scene();
+    scene.background=new THREE.Color("#020305");
+    scene.fog=new THREE.FogExp2("#020305",.012);
+    const camera=new THREE.PerspectiveCamera(42,1,.1,100);
+    camera.position.set(0,0,10.8);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+    renderer.setSize(host.clientWidth,host.clientHeight);
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1;
+    host.appendChild(renderer.domElement);
 
-    // Use the detailed muscular-system asset as the hero anatomy model.
-    const human=new THREE.Group(); human.position.set(1.65,0,0); scene.add(human);
-    const heroLoader = new GLTFLoader();
-    heroLoader.load("/models/full-body-muscular-system-selected-deep-layer.glb", (gltf) => {
-      const model = gltf.scene;
-      const bounds = new THREE.Box3().setFromObject(model);
-      const dimensions = bounds.getSize(new THREE.Vector3());
-      const center = bounds.getCenter(new THREE.Vector3());
-      const fitScale = 5.5 / Math.max(dimensions.y, 0.001);
-      model.scale.setScalar(fitScale);
-      model.position.set(-center.x * fitScale, -center.y * fitScale, -center.z * fitScale);
-      model.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          object.castShadow = true;
-          object.receiveShadow = true;
-          const materials = Array.isArray(object.material) ? object.material : [object.material];
-          materials.forEach((material) => {
-            if (material instanceof THREE.MeshStandardMaterial) {
-              material.roughness = Math.min(material.roughness, 0.44);
-              material.metalness = Math.max(material.metalness, 0.06);
-              material.needsUpdate = true;
-            }
-          });
-        }
-      });
-      human.add(model);
-    }, undefined, (error) => console.warn("Hero anatomy model could not be loaded:", error));
-    // Holographic orbital rings and scanning planes
-    const haloGroup=new THREE.Group(); scene.add(haloGroup);
-    for(let i=0;i<4;i++){const ring=new THREE.Mesh(new THREE.TorusGeometry(2.65+i*.42,.008,6,180),new THREE.MeshBasicMaterial({color:i%2?0x6c5bff:0x4fe6e4,transparent:true,opacity:.22-i*.03})); ring.rotation.x=Math.PI/2+(i*.17); ring.position.set(1.65,-.15-i*.3,0); haloGroup.add(ring);}
-    const scanPlane=new THREE.Mesh(new THREE.PlaneGeometry(6.5,6.5),new THREE.MeshBasicMaterial({color:0x63e9e2,transparent:true,opacity:.055,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); scanPlane.position.set(1.65,0,.2); scene.add(scanPlane);
-    const count=window.innerWidth<700?450:1000, pos=new Float32Array(count*3), seeds=new Float32Array(count);
-    for(let i=0;i<count;i++){const a=Math.random()*Math.PI*2,r=3+Math.random()*12;pos[i*3]=Math.cos(a)*r;pos[i*3+1]=(Math.random()-.5)*10;pos[i*3+2]=Math.sin(a)*r;seeds[i]=Math.random()*6.28;}
-    const pg=new THREE.BufferGeometry(); pg.setAttribute("position",new THREE.BufferAttribute(pos,3));
-    const points=new THREE.Points(pg,new THREE.PointsMaterial({color:0x9a91ff,size:.035,transparent:true,opacity:.72,depthWrite:false})); scene.add(points);
-    const path=new THREE.CatmullRomCurve3([new THREE.Vector3(0,2.5,13),new THREE.Vector3(3,1.5,9),new THREE.Vector3(-2,1,7),new THREE.Vector3(1,3,-7),new THREE.Vector3(0,2.5,13)]);
-    let pointerX=0,pointerY=0,targetX=0,targetY=0,session:any=null;
+    // A slow, breathing torus of suspended dust — the hero visual.
+    const field=new THREE.Group(); field.position.set(2.35,.05,0); scene.add(field);
+    const mobile=window.innerWidth<700;
+    const count=mobile?2600:7200;
+    const positions=new Float32Array(count*3);
+    const colors=new Float32Array(count*3);
+    for(let i=0;i<count;i++){
+      const around=Math.random()*Math.PI*2;
+      const tube=Math.random()*Math.PI*2;
+      const tubeRadius=Math.sqrt(Math.random())*(mobile?.57:.68);
+      const major=1.78+(Math.random()-.5)*.18;
+      const ripple=Math.sin(around*3+tube*1.7)*.10;
+      const radius=major+tubeRadius*Math.cos(tube)+ripple;
+      positions[i*3]=Math.cos(around)*radius;
+      positions[i*3+1]=Math.sin(tube)*tubeRadius*.92+Math.sin(around*2)*.10;
+      positions[i*3+2]=Math.sin(around)*radius;
+      const tint=Math.random();
+      colors[i*3]=.62+tint*.34;
+      colors[i*3+1]=.72+tint*.26;
+      colors[i*3+2]=.82+tint*.18;
+    }
+    const ringGeometry=new THREE.BufferGeometry();
+    ringGeometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
+    ringGeometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
+    const ringMaterial=new THREE.PointsMaterial({
+      size:mobile?.023:.018, vertexColors:true, transparent:true, opacity:.82,
+      depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true
+    });
+    const ringPoints=new THREE.Points(ringGeometry,ringMaterial); field.add(ringPoints);
+    const glowMaterial=new THREE.PointsMaterial({
+      size:mobile?.065:.052, color:0x8caedb, transparent:true, opacity:.10,
+      depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true
+    });
+    field.add(new THREE.Points(ringGeometry,glowMaterial));
+
+    // Smaller distant particles give the scene scale and depth.
+    const dustCount=mobile?850:2100;
+    const dustPositions=new Float32Array(dustCount*3);
+    const dustSeeds=new Float32Array(dustCount);
+    for(let i=0;i<dustCount;i++){
+      dustPositions[i*3]=(Math.random()-.5)*17;
+      dustPositions[i*3+1]=(Math.random()-.5)*9;
+      dustPositions[i*3+2]=(Math.random()-.5)*13-2;
+      dustSeeds[i]=Math.random()*Math.PI*2;
+    }
+    const dustGeometry=new THREE.BufferGeometry();
+    dustGeometry.setAttribute("position",new THREE.BufferAttribute(dustPositions,3));
+    const dust=new THREE.Points(dustGeometry,new THREE.PointsMaterial({
+      color:0xc4d4e9,size:mobile?.012:.01,transparent:true,opacity:.35,
+      depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true
+    }));
+    scene.add(dust);
+
+    // A few very fine filaments are only visible when they catch the light.
+    const filaments=new THREE.Group(); field.add(filaments);
+    for(let j=0;j<3;j++){
+      const curvePoints:THREE.Vector3[]=[];
+      for(let k=0;k<=180;k++){
+        const a=k/180*Math.PI*2;
+        const r=1.78+j*.16;
+        curvePoints.push(new THREE.Vector3(Math.cos(a)*r,Math.sin(a*2+j)*(.19+j*.07),Math.sin(a)*r));
+      }
+      const curve=new THREE.CatmullRomCurve3(curvePoints);
+      const line=new THREE.Mesh(
+        new THREE.TubeGeometry(curve,240,.0025,3,false),
+        new THREE.MeshBasicMaterial({color:j===1?0x8ed7df:0xa3b8d9,transparent:true,opacity:.12,depthWrite:false})
+      );
+      filaments.add(line);
+    }
+
+    let pointerX=0,pointerY=0,targetX=0,targetY=0;
     const clock=new THREE.Clock();
-    const onScroll=()=>{const r=section.getBoundingClientRect(),d=Math.max(1,r.height-innerHeight),p=THREE.MathUtils.clamp(-r.top/d,0,1);progressRef.current=p;setProgress(p);setChapterIndex(Math.min(3,Math.floor(p*4)));};
-    const onPointer=(e:PointerEvent)=>{targetX=(e.clientX/innerWidth-.5)*2;targetY=(e.clientY/innerHeight-.5)*2;};
-    const resize=()=>{const w=host.clientWidth||innerWidth,h=host.clientHeight||innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.7));};
-    const xr=(navigator as Navigator & {xr?:any}).xr;
-    if(xr?.isSessionSupported) xr.isSessionSupported("immersive-vr").then((ok:boolean)=>setXrAvailable(ok)).catch(()=>setXrAvailable(false));
-    xrRequest.current=async()=>{
-      if(!xr){setXrStatus("WEBXR IS NOT SUPPORTED HERE");return;}
-      if(session){await session.end();return;}
-      try{setXrStatus("INITIALISING IMMERSIVE SESSION");const next=await xr.requestSession("immersive-vr",{optionalFeatures:["local-floor","bounded-floor","hand-tracking"]});session=next;next.addEventListener("end",()=>{session=null;setXrActive(false);setXrStatus("IMMERSIVE MODE / STANDBY");},{once:true});camera.position.set(0,1.6,8);camera.lookAt(0,0,0);await renderer.xr.setSession(next);setXrActive(true);setXrStatus("IMMERSIVE SESSION ACTIVE");}catch(e){setXrStatus(e instanceof Error?e.message.toUpperCase():"SESSION COULD NOT START");}
+    const onScroll=()=>{
+      const r=section.getBoundingClientRect(),d=Math.max(1,r.height-innerHeight);
+      const p=THREE.MathUtils.clamp(-r.top/d,0,1);
+      progressRef.current=p;setProgress(p);setChapterIndex(Math.min(3,Math.floor(p*4)));
     };
-    window.addEventListener("scroll",onScroll,{passive:true});window.addEventListener("resize",resize);window.addEventListener("pointermove",onPointer,{passive:true});onScroll();resize();
+    const onPointer=(event:PointerEvent)=>{
+      targetX=(event.clientX/innerWidth-.5)*2;
+      targetY=(event.clientY/innerHeight-.5)*2;
+    };
+    const resize=()=>{
+      const w=host.clientWidth||innerWidth,h=host.clientHeight||innerHeight;
+      camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);
+      renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));
+    };
+    window.addEventListener("scroll",onScroll,{passive:true});
+    window.addEventListener("resize",resize);
+    window.addEventListener("pointermove",onPointer,{passive:true});
+    onScroll();resize();
+
     renderer.setAnimationLoop(()=>{
       const t=clock.getElapsedTime(),p=progressRef.current;
-      pointerX=THREE.MathUtils.lerp(pointerX,targetX,.035);pointerY=THREE.MathUtils.lerp(pointerY,targetY,.035);
-      if(!renderer.xr.isPresenting){const cp=path.getPointAt(p);cp.x+=pointerX*.5;cp.y-=pointerY*.25;camera.position.lerp(cp,.035);camera.lookAt(pointerX*.2,.1-pointerY*.15,0);}
-      human.position.y=Math.sin(t*.8)*.045;human.rotation.y=Math.sin(t*.18)*.12+p*.25;
-      haloGroup.rotation.y=t*.045;haloGroup.rotation.z=Math.sin(t*.2)*.035;
-      scanPlane.position.y=Math.sin(t*.32)*2.5;scanPlane.material.opacity=.025+(.04*(.5+.5*Math.sin(t*1.4)));
-      const arr=pg.attributes.position.array as Float32Array;for(let i=0;i<count;i++)arr[i*3+1]=pos[i*3+1]+Math.sin(t*.3+seeds[i])*.22;pg.attributes.position.needsUpdate=true;points.rotation.y=t*.012;
-      violet.intensity=80+Math.sin(t*.8)*15;cyan.intensity=68+Math.cos(t*.7)*12;
+      pointerX=THREE.MathUtils.lerp(pointerX,targetX,.035);
+      pointerY=THREE.MathUtils.lerp(pointerY,targetY,.035);
+      field.rotation.y=t*.045+pointerX*.17+p*.12;
+      field.rotation.x=Math.sin(t*.13)*.09+pointerY*.09;
+      field.rotation.z=Math.sin(t*.17)*.025;
+      field.position.y=.05+Math.sin(t*.38)*.08-pointerY*.11;
+      dust.rotation.y=-t*.008+pointerX*.025;
+      dust.rotation.x=Math.sin(t*.11)*.018;
+      const dp=dustGeometry.attributes.position.array as Float32Array;
+      for(let i=0;i<dustCount;i++){
+        dp[i*3+1]=dustPositions[i*3+1]+Math.sin(t*.18+dustSeeds[i])*.13;
+      }
+      dustGeometry.attributes.position.needsUpdate=true;
+      camera.position.x=THREE.MathUtils.lerp(camera.position.x,pointerX*.22,.025);
+      camera.position.y=THREE.MathUtils.lerp(camera.position.y,-pointerY*.14,.025);
+      camera.position.z=10.8-p*.45;
+      camera.lookAt(.35,0,0);
       renderer.render(scene,camera);
     });
-    return()=>{renderer.setAnimationLoop(null);if(session)session.end().catch(()=>{});xrRequest.current=null;window.removeEventListener("scroll",onScroll);window.removeEventListener("resize",resize);window.removeEventListener("pointermove",onPointer);scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Points){o.geometry.dispose();const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>m.dispose());}});renderer.dispose();if(host.contains(renderer.domElement))host.removeChild(renderer.domElement);};
+    return()=>{
+      renderer.setAnimationLoop(null);
+      window.removeEventListener("scroll",onScroll);
+      window.removeEventListener("resize",resize);
+      window.removeEventListener("pointermove",onPointer);
+      scene.traverse(object=>{
+        if(object instanceof THREE.Mesh||object instanceof THREE.Points){
+          object.geometry.dispose();
+          const materials=Array.isArray(object.material)?object.material:[object.material];
+          materials.forEach(material=>material.dispose());
+        }
+      });
+      renderer.dispose();
+      if(host.contains(renderer.domElement))host.removeChild(renderer.domElement);
+    };
   },[]);
+
+  useEffect(()=>()=>{if(audioEngine.current){audioEngine.current.ctx.close().catch(()=>{});audioEngine.current=null;}},[]);
   const chapter=chapters[chapterIndex];
   return <section className="anatomy-sequence" id="top" ref={sequence}>
     <div className="anatomy-sticky">
-      <div className="anatomy-canvas" ref={mount}/><div className="scene-vignette"/><div className="scene-grain"/>
-      <div className="scene-meta"><span>ANATOMY / VISUAL RESEARCH 001</span><span>HUMAN SYSTEMS / INTERACTIVE ATLAS</span></div>
-      <div className="hero-copy" key={chapterIndex}><p className="eyebrow"><i/>{chapter.tag}</p><h1>{chapter.title.split("\n").map((line,i)=><span key={line}>{line}{i===0&&<br/>}</span>)}</h1><p className="hero-description">{chapter.body}</p><a href="#atlas" className="hero-action">ENTER THE ATLAS <ArrowUpRight size={15}/></a></div>
-      <div className="hero-side-note"><span>FIG. 001</span><i/> <span>ANATOMICAL SYSTEMS</span></div>
-      <button className="xr-button" disabled={!xrAvailable&&!xrActive} onClick={()=>xrRequest.current?.()}><Orbit size={15}/>{xrActive?"EXIT IMMERSIVE":"ENTER IMMERSIVE"}</button><span className="xr-status">{xrStatus}</span>
-      <div className="scene-bottom"><span>SCROLL TO EXPLORE</span><div className="progress-line"><i style={{transform:"scaleX("+progress+")"}}/></div><span>{String(Math.round(progress*100)).padStart(2,"0")}%</span><div className="chapter-dots">{chapters.map((c,i)=><span key={c.tag} className={i===chapterIndex?"active":""}>{c.tag.slice(0,2)}</span>)}</div><a href="#atlas" aria-label="Explore anatomy"><ArrowDown size={17}/></a></div>
+      <div className="anatomy-canvas" ref={mount}/>
+      <div className="scene-vignette"/>
+      <div className="scene-grain"/>
+      <div className="scene-meta"><span>VITAL/FORM — AN ANATOMICAL STUDY</span><span>FORM · SIGNAL · MOTION</span></div>
+      <div className="hero-copy" key={chapterIndex}>
+        <p className="eyebrow"><i/>{chapter.tag}</p>
+        <h1>{chapter.title.split("\n").map((line,i)=><span key={line}>{line}{i===0&&<br/>}</span>)}</h1>
+        <p className="hero-description">{chapter.body}</p>
+        <a href="#atlas" className="hero-action">ENTER THE ATLAS <ArrowUpRight size={15}/></a>
+      </div>
+      <div className="hero-side-note"><span>FIG. 001</span><i/><span>PARTICLE STUDY / 01</span></div>
+      <button className={"sound-toggle "+(soundEnabled?"sound-active":"")} onClick={toggleSound} aria-pressed={soundEnabled}>
+        <span className="sound-bars"><i/><i/><i/><i/></span>{soundEnabled?"SOUND ON":"SOUND OFF"}
+      </button>
+      <div className="scene-bottom">
+        <span>SCROLL TO EXPLORE</span>
+        <div className="progress-line"><i style={{transform:"scaleX("+progress+")"}}/></div>
+        <span>{String(Math.round(progress*100)).padStart(2,"0")}%</span>
+        <div className="chapter-dots">{chapters.map((c,i)=><span key={c.tag} className={i===chapterIndex?"active":""}>{c.tag.slice(0,2)}</span>)}</div>
+        <a href="#atlas" aria-label="Explore anatomy"><ArrowDown size={17}/></a>
+      </div>
     </div>
   </section>;
 }
-
 
 
 function AnatomyModelExplorer() {
