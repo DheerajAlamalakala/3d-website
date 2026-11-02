@@ -97,7 +97,7 @@ function makePontoon(offsetX: number, material: THREE.Material) {
     for (let j = 0; j < radial; j++) {
       const a = i * (radial + 1) + j;
       const b = a + radial + 1;
-      indices.push(a, b, a + 1, b, b + 1, a + 1);
+      indices.push(a, a + 1, b, b, a + 1, b + 1);
     }
   }
 
@@ -236,7 +236,7 @@ function OceanStage() {
         "vec3 color=mix(uDeep,uMid,depth);",
         "color=mix(color,uShallow,glint*0.55+fresnel*0.32);",
         "color+=vec3(0.36,0.74,0.72)*glint*0.17;",
-        "float distanceFade=smoothstep(105.0,12.0,length(vWorldPosition.xz));",
+        "float distanceFade=1.0-smoothstep(12.0,105.0,length(vWorldPosition.xz));",
         "color=mix(vec3(0.025,0.065,0.085),color,distanceFade*0.9+0.1);",
         "gl_FragColor=vec4(color,1.0);",
         "}"
