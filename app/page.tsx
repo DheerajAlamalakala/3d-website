@@ -250,7 +250,7 @@ function OceanStage() {
     scene.add(water);
 
     const boat = new THREE.Group();
-    boat.position.y = 0.37;
+    boat.position.set(1.8, 0.37, 0);
     scene.add(boat);
 
     const hullMaterial = new THREE.MeshPhysicalMaterial({
@@ -456,6 +456,7 @@ function OceanStage() {
     cabin.add(sensorBeam);
 
     const scanRings = new THREE.Group();
+    scanRings.position.x = 1.8;
     scene.add(scanRings);
     const scanRingMeshes: THREE.Mesh[] = [];
     for (let i = 0; i < 4; i++) {
