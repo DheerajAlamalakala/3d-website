@@ -469,120 +469,108 @@ export default function Home() {
   return (
     <main>
       <nav className="nav">
-        <a href="#top" className="nav-brand">
+        <a href="#top" className="nav-brand" aria-label="AQUAVANT home">
           <span className="brand-symbol"><Waves size={17}/></span>
           AQUAVANT<span className="lime">.</span>
         </a>
-
         <div className="nav-right">
-          <a href="#story">THE PLATFORM</a>
-          <a href="#engineering">ENGINEERING</a>
-          <a href="#contact">CONTACT <ArrowUpRight size={13}/></a>
+          <a href="#platform">PLATFORM</a>
+          <a href="#capabilities">CAPABILITIES</a>
+          <a href="#manifesto">OUR THINKING</a>
+          <a className="nav-contact" href="#contact">LET'S TALK <ArrowUpRight size={13}/></a>
         </div>
-
-        <button
-          className="mobile-menu"
-          onClick={() => setMenu(!menu)}
-          aria-label="Toggle menu"
-        >
+        <button className="mobile-menu" onClick={() => setMenu(!menu)} aria-label="Toggle menu">
           {menu ? <X/> : <Menu/>}
         </button>
-
-        {menu && (
-          <div className="mobile-panel">
-            <a onClick={() => setMenu(false)} href="#story">The platform</a>
-            <a onClick={() => setMenu(false)} href="#engineering">Engineering</a>
-            <a onClick={() => setMenu(false)} href="#contact">Contact</a>
-          </div>
-        )}
+        {menu && <div className="mobile-panel">
+          <a onClick={() => setMenu(false)} href="#platform">Platform</a>
+          <a onClick={() => setMenu(false)} href="#capabilities">Capabilities</a>
+          <a onClick={() => setMenu(false)} href="#manifesto">Our thinking</a>
+          <a onClick={() => setMenu(false)} href="#contact">Contact</a>
+        </div>}
       </nav>
 
       <section className="experience" id="top">
         <ThreeExperience/>
+        <div className="hero-bottomline">
+          <span>ENGINEERED FOR THE UNEXPECTED</span>
+          <span className="hero-coordinate">17° 23' N&nbsp;&nbsp; 78° 29' E</span>
+        </div>
+        <div className="hero-side-note">AUTONOMY / INTELLIGENCE / RESPONSE</div>
       </section>
 
-      <section className="story-section" id="story">
-        <div className="story-image"/>
+      <section className="intro-band" id="platform">
+        <div className="section-meta"><span>01 — THE PLATFORM</span><span>BUILT FOR WHAT'S NEXT</span></div>
+        <div className="intro-grid">
+          <h2>THE WATER<br/>DOESN'T <em>WAIT.</em></h2>
+          <div className="intro-text">
+            <p className="intro-lead">A new perspective on marine response.</p>
+            <p>AQUAVANT is a next-generation autonomous marine platform concept. A study in purposeful design, intelligent systems and the possibilities of a more responsive relationship with our waterways.</p>
+            <a className="text-link" href="#capabilities">EXPLORE THE SYSTEM <ArrowUpRight size={15}/></a>
+          </div>
+        </div>
+        <div className="intro-index">A / 001</div>
+      </section>
 
-        <div className="story-copy">
-          <span className="eyebrow">THE PLATFORM / 01</span>
+      <section className="visual-break">
+        <div className="visual-break-image" />
+        <div className="visual-break-overlay" />
+        <div className="visual-break-copy">
+          <span>BEYOND THE SHORELINE / 02</span>
+          <h2>See further.<br/><em>Respond faster.</em></h2>
+          <p>Designed around awareness, adaptability and the people who depend on the water.</p>
+        </div>
+        <div className="visual-break-mark">AV—02</div>
+      </section>
 
-          <h2>
-            Small craft.<br/>
-            <em>Big purpose.</em>
-          </h2>
-
-          <p>
-            AQUAVANT is a fictional marine robotics concept exploring
-            how autonomous systems can support safer, smarter
-            operations on the water.
-          </p>
-
-          <span className="story-foot">
-            BUILT FOR THE UNPREDICTABLE ↗
-          </span>
+      <section className="capabilities" id="capabilities">
+        <div className="section-meta dark-meta"><span>02 — SYSTEM CAPABILITIES</span><span>ONE PLATFORM / MULTIPLE MISSIONS</span></div>
+        <div className="capabilities-heading">
+          <h2>INTELLIGENCE<br/>IN <em>MOTION.</em></h2>
+          <p>Every element has a role. Every system works toward a clearer picture of the environment.</p>
+        </div>
+        <div className="capability-list">
+          <article className="capability">
+            <span className="cap-number">01</span>
+            <div><span className="cap-label">PROPULSION</span><h3>Control in every direction.</h3><p>A twin-hull concept designed around stability, manoeuvrability and responsive movement.</p></div>
+            <span className="cap-arrow"><ArrowUpRight size={20}/></span>
+          </article>
+          <article className="capability">
+            <span className="cap-number">02</span>
+            <div><span className="cap-label">PERCEPTION</span><h3>Awareness at the edge.</h3><p>A modular sensor architecture imagined to bring navigation and situational data together.</p></div>
+            <span className="cap-arrow"><ArrowUpRight size={20}/></span>
+          </article>
+          <article className="capability">
+            <span className="cap-number">03</span>
+            <div><span className="cap-label">MODULARITY</span><h3>Ready for the mission.</h3><p>A flexible deck concept leaves room for payloads, equipment and evolving operational needs.</p></div>
+            <span className="cap-arrow"><ArrowUpRight size={20}/></span>
+          </article>
         </div>
       </section>
 
-      <section className="engineering" id="engineering">
-        <div className="engineering-head">
-          <span className="eyebrow">ENGINEERING / 02</span>
-
-          <h2>
-            One system.<br/>
-            <em>Many possibilities.</em>
-          </h2>
-        </div>
-
-        <div className="spec-grid">
-          <article>
-            <span>01 / PROPULSION</span>
-            <h3>Precision movement</h3>
-            <p>
-              Twin propulsion units offer responsive maneuvering
-              and a compact footprint.
-            </p>
-          </article>
-
-          <article>
-            <span>02 / PERCEPTION</span>
-            <h3>Awareness by design</h3>
-            <p>
-              A modular sensor mast provides a foundation for
-              navigation and situational awareness.
-            </p>
-          </article>
-
-          <article>
-            <span>03 / ARCHITECTURE</span>
-            <h3>Mission adaptable</h3>
-            <p>
-              A configurable deck supports payloads and
-              equipment for different use cases.
-            </p>
-          </article>
-        </div>
+      <section className="manifesto" id="manifesto">
+        <div className="manifesto-top"><span>03 — OUR THINKING</span><span>DESIGN WITH INTENT</span></div>
+        <p>THE FUTURE OF THE WATER ISN'T JUST ABOUT GOING FURTHER.</p>
+        <h2>IT'S ABOUT<br/><em>KNOWING WHY.</em></h2>
+        <div className="manifesto-bottom"><span>CONSIDERED DESIGN. CONNECTED SYSTEMS. HUMAN PURPOSE.</span><span>— AQUAVANT</span></div>
       </section>
 
       <footer id="contact">
-        <div>
-          <span className="eyebrow">THE NEXT HORIZON</span>
-
-          <h2>
-            Let's move<br/>
-            <em>forward.</em>
-          </h2>
+        <div className="footer-top">
+          <span className="eyebrow">04 — THE NEXT HORIZON</span>
+          <span className="footer-coordinate">AQUAVANT / EST. 2026</span>
         </div>
-
-        <a className="footer-contact" href="mailto:hello@aquavant.example">
-          Start a conversation <ArrowUpRight size={17}/>
-        </a>
-
+        <h2>MAKE WAVES.<br/><em>MAKE A DIFFERENCE.</em></h2>
+        <div className="footer-action-row">
+          <p>A concept for a more intelligent, responsive future on the water.</p>
+          <a className="footer-contact" href="mailto:hello@aquavant.example">START A CONVERSATION <ArrowUpRight size={17}/></a>
+        </div>
         <div className="footer-bottom">
-          <span>AQUAVANT © 2026 — CONCEPT PROJECT</span>
+          <a href="#top" className="footer-brand">AQUAVANT<span>.</span></a>
+          <span>© 2026 AQUAVANT — CONCEPT EXPERIENCE</span>
           <a href="#top">BACK TO TOP ↑</a>
         </div>
       </footer>
     </main>
   );
-        }
+}
