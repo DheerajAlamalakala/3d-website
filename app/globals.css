@@ -139,3 +139,8 @@ body{background:#030407;color:#f2f0f8;overflow-x:hidden}
 .chapter-visible .world-card:nth-child(1){transition-delay:30ms}
 @keyframes chapter-arrive{from{opacity:0;transform:translate3d(0,24px,0);filter:blur(8px)}to{opacity:1;transform:translate3d(0,0,0);filter:blur(0)}}
 @media(prefers-reduced-motion:reduce){.chapter>*{opacity:1;transform:none;transition:none}.hero-chapter.chapter-visible .hero-copy{animation:none}}
+
+
+/* Keep the sound toggle compact on narrow screens and prevent it inheriting oversized control styles. */
+.sound-control{box-sizing:border-box!important;display:inline-flex!important;width:max-content!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:calc(100vw - 32px)!important;max-height:44px!important;aspect-ratio:auto!important;flex:0 0 auto!important;white-space:nowrap!important;writing-mode:horizontal-tb!important;transform:none!important;}
+@media(max-width:650px){.sound-control{top:auto!important;left:auto!important;right:16px!important;bottom:18px!important;padding:10px 13px!important;}}
