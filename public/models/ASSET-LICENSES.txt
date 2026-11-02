@@ -1,0 +1,10 @@
+VITAL/FORM — 3D MODEL ASSET NOTES
+
+Source: Innerscene 3D Parts Library.
+- Full adult skeleton, standing — CC0
+- Full-body muscular system - selected deep layer — CC0
+- Torso with removable organs — CC0 (adapted from MakeHuman/MPFB CC0 assets)
+
+CC0 permits use, modification and redistribution, including commercial use, without attribution being required. Retaining this note is recommended.
+
+These are educational visual assets, not clinically validated diagnostic or treatment tools.
