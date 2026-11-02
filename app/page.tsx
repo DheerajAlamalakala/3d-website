@@ -20,18 +20,6 @@ const systems = [
   { id:"cellular", n:"04", title:"Cellular world", subtitle:"LIFE AT ANOTHER SCALE", text:"Zoom beyond organs into the microscopic structures, membranes and molecular processes that make life possible.", stat:"TRILLIONS / HUMAN CELLS", icon:Dna, color:"#c3f17b" }
 ];
 
-function limb(a: THREE.Vector3, b: THREE.Vector3, radius: number, material: THREE.Material) {
-  const direction = new THREE.Vector3().subVectors(b,a);
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius*0.78,radius,direction.length(),16),material);
-  mesh.position.copy(a).add(b).multiplyScalar(0.5);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction.normalize());
-  mesh.castShadow = true;
-  return mesh;
-}
-function sphere(scene: THREE.Group, position: [number,number,number], scale: [number,number,number], material: THREE.Material, detail=24) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1,detail,detail),material);
-  mesh.position.set(...position); mesh.scale.set(...scale); mesh.castShadow=true; scene.add(mesh); return mesh;
-}
 function AnatomyStage() {
   const mount=useRef<HTMLDivElement>(null), sequence=useRef<HTMLElement>(null);
   const progressRef=useRef(0);
@@ -74,7 +62,7 @@ function AnatomyStage() {
       const next=!soundEnabled;
       if(ctx.state==="suspended" && next) void ctx.resume();
       master.gain.cancelScheduledValues(ctx.currentTime);
-      master.gain.setTargetAtTime(next?.72:0,ctx.currentTime,.35);
+      master.gain.setTargetAtTime(next ? 0.72 : 0,ctx.currentTime,.35);
       setSoundEnabled(next);
     }
   };
