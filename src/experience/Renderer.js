@@ -4,7 +4,7 @@ export default class Renderer {
   constructor(canvas) {
     this.instance = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      antialias: false,
       alpha: false,
       powerPreference: "high-performance",
     });
@@ -12,13 +12,15 @@ export default class Renderer {
     this.instance.toneMapping = THREE.ACESFilmicToneMapping;
     this.instance.toneMappingExposure = 1;
     this.instance.setClearColor(0x050609, 1);
+    this.pixelRatio = 1;
     this.resize();
   }
 
   resize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    this.instance.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    this.instance.setPixelRatio(this.pixelRatio);
     this.instance.setSize(width, height, false);
   }
 
