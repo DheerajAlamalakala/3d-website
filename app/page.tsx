@@ -456,11 +456,11 @@ function ThreeExperience() {
         pullback * 2.2;
 
       camera.position.lerp(
-        new THREE.Vector3(camX, camY, camZ),
+        new THREE.Vector3(camX + pointerX * 0.55, camY + pointerY * 0.28, camZ),
         0.045
       );
 
-      camera.lookAt(0, 0.25 + detail * 0.4, 0);
+      camera.lookAt(pointerX * 0.18, 0.25 + detail * 0.4 - pointerY * 0.12, 0);
 
       // Animate the ocean.
       for (let i = 0; i < positions.count; i++) {
@@ -492,9 +492,6 @@ function ThreeExperience() {
       });
       sensorHalo.rotation.z = time * 0.7;
       scanBeam.rotation.y = Math.sin(time * 0.2) * 0.12;
-      camera.position.x += pointerX * 0.55;
-      camera.position.y += pointerY * 0.28;
-
       renderer.render(scene, camera);
     }
 
