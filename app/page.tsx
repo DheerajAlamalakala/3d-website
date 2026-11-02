@@ -235,14 +235,14 @@ function AnatomyStage() {
       camera.position.z=10.2-p*.55;
       camera.lookAt(.45,0,0);
       renderer.render(scene,camera);
-    });;
+    });
     return()=>{
       renderer.setAnimationLoop(null);
       window.removeEventListener("scroll",onScroll);
       window.removeEventListener("resize",resize);
       window.removeEventListener("pointermove",onPointer);
       scene.traverse(object=>{
-        if(object instanceof THREE.Mesh||object instanceof THREE.Points){
+        if(object instanceof THREE.Mesh||object instanceof THREE.Points||object instanceof THREE.Line){
           object.geometry.dispose();
           const materials=Array.isArray(object.material)?object.material:[object.material];
           materials.forEach(material=>material.dispose());
