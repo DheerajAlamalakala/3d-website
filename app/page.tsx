@@ -607,11 +607,34 @@ function AnatomyModelExplorer() {
 }
 
 export default function Home(){
- const [menu,setMenu]=useState(false),[active,setActive]=useState(0);const item=systems[active];
- useEffect(()=>{const els=Array.from(document.querySelectorAll<HTMLElement>(".reveal"));const io=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("visible");io.unobserve(e.target);}}),{threshold:.12});els.forEach(e=>io.observe(e));return()=>io.disconnect();},[]);
+ const [menu,setMenu]=useState(false),[active,setActive]=useState(0),[activeNav,setActiveNav]=useState("atlas");const item=systems[active];
+ useEffect(()=>{
+  const els=Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+  const revealObserver=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("visible");revealObserver.unobserve(e.target);}}),{threshold:.12});
+  els.forEach(e=>revealObserver.observe(e));
+  const sections=["atlas","systems","model-lab","future"].map(id=>document.getElementById(id)).filter(Boolean) as HTMLElement[];
+  const sectionObserver=new IntersectionObserver(entries=>{
+    const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+    if(visible)setActiveNav(visible.target.id);
+  },{rootMargin:"-22% 0px -58% 0px",threshold:[0,.15,.35,.6]});
+  sections.forEach(section=>sectionObserver.observe(section));
+  let lastY=window.scrollY,lastTime=performance.now(),velocity=0,raf=0;
+  const onScroll=()=>{
+    const now=performance.now(),y=window.scrollY,dt=Math.max(16,now-lastTime);
+    velocity=Math.max(-2.5,Math.min(2.5,(y-lastY)/dt));
+    lastY=y;lastTime=now;
+    document.documentElement.style.setProperty("--scroll-velocity",String(Math.abs(velocity)));
+    document.documentElement.style.setProperty("--scroll-direction",velocity<0?"-1":"1");
+    document.querySelector(".nav")?.classList.toggle("nav-in-motion",Math.abs(velocity)>.35);
+    cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(()=>document.querySelector(".nav")?.style.setProperty("--nav-drift",String(velocity)));
+  };
+  window.addEventListener("scroll",onScroll,{passive:true});
+  return()=>{revealObserver.disconnect();sectionObserver.disconnect();window.removeEventListener("scroll",onScroll);cancelAnimationFrame(raf);};
+ },[]);
  const close=()=>setMenu(false);
  return <main className="site-shell">
-  <nav className="nav"><a className="brand" href="#top" onClick={close}><span className="brand-symbol"><Activity size={19}/></span><span>VITAL<span className="brand-accent">/</span>FORM</span></a><div className="nav-links"><a href="#atlas">ATLAS</a><a href="#systems">SYSTEMS</a><a href="#model-lab">3D LAB</a><a href="#future">FRONTIER</a></div><a className="nav-cta" href="#atlas">EXPLORE THE BODY <ArrowUpRight size={14}/></a><button className="menu-button" onClick={()=>setMenu(!menu)} aria-label="Toggle menu">{menu?<X/>:<Menu/>}</button>{menu&&<div className="mobile-menu"><a href="#atlas" onClick={close}>ATLAS ↗</a><a href="#systems" onClick={close}>SYSTEMS ↗</a><a href="#model-lab" onClick={close}>3D LAB ↗</a><a href="#future" onClick={close}>FRONTIER ↗</a></div>}</nav>
+  <nav className="nav"><a className="brand" href="#top" onClick={close}><span className="brand-symbol"><Activity size={19}/></span><span>VITAL<span className="brand-accent">/</span>FORM</span></a><div className="nav-links"><a className={activeNav==="atlas"?"active":""} href="#atlas">ATLAS</a><a className={activeNav==="systems"?"active":""} href="#systems">SYSTEMS</a><a className={activeNav==="model-lab"?"active":""} href="#model-lab">3D LAB</a><a className={activeNav==="future"?"active":""} href="#future">FRONTIER</a></div><a className="nav-cta" href="#atlas">EXPLORE THE BODY <ArrowUpRight size={14}/></a><button className="menu-button" onClick={()=>setMenu(!menu)} aria-label="Toggle menu">{menu?<X/>:<Menu/>}</button>{menu&&<div className="mobile-menu"><a href="#atlas" onClick={close}>ATLAS ↗</a><a href="#systems" onClick={close}>SYSTEMS ↗</a><a href="#model-lab" onClick={close}>3D LAB ↗</a><a href="#future" onClick={close}>FRONTIER ↗</a></div>}</nav>
   <AnatomyStage/>
   <section className="intro-section" id="atlas"><div className="section-kicker reveal"><span>01 / THE ANATOMICAL ATLAS</span><span>FORM FOLLOWS FUNCTION</span></div><div className="intro-grid"><div className="reveal"><p className="light-label">A NEW WAY TO SEE YOURSELF</p><h2>NOT JUST<br/>A BODY.<br/><em>A UNIVERSE.</em></h2></div><div className="intro-copy reveal"><span className="accent-rule"/><p>Every movement, every thought, every heartbeat is the result of extraordinary systems working together. VITAL/FORM is an immersive exploration of the human body — from its visible architecture to the invisible signals that bring it to life.</p><a href="#systems" className="text-link">EXPLORE THE SYSTEMS <ArrowRight size={15}/></a><div className="intro-index"><span>01</span><span>HUMAN BIOLOGY / DIGITAL EXPLORATION</span></div></div></div></section>
   <section className="systems-section" id="systems"><div className="systems-heading reveal"><div><p className="light-label">02 / INTERACTIVE SYSTEMS</p><h2>FOUR LAYERS.<br/><em>ONE LIFE.</em></h2></div><p>Choose a system to reveal its role in the living network. This is an educational visual concept, not a diagnostic tool.</p></div><div className="system-explorer"><div className="system-list">{systems.map((s,i)=><button key={s.id} className={i===active?"system-choice active":"system-choice"} onClick={()=>setActive(i)}><span>{s.n}</span><strong>{s.title}</strong><ArrowUpRight size={16}/></button>)}</div><article className="system-detail" key={item.id}><div className="detail-orbit"><div className="orbit-ring ring-one"/><div className="orbit-ring ring-two"/><div className="orbit-ring ring-three"/><div className="detail-core" style={{color:item.color}}><item.icon size={42} strokeWidth={1.2}/></div><span className="orbit-node node-one"/><span className="orbit-node node-two"/></div><div className="detail-copy"><p className="light-label">{item.subtitle}</p><h3>{item.title}<span>.</span></h3><p>{item.text}</p><div className="detail-stat"><span>REFERENCE / {item.n}</span><strong>{item.stat}</strong></div></div></article></div></section>
