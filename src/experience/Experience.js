@@ -3,6 +3,8 @@ import Renderer from "./Renderer.js";
 import Camera from "./Camera.js";
 import Particles from "./Particles.js";
 import Effects from "./Effects.js";
+import UILayer from "./UILayer.js";
+import Cursor from "./Cursor.js";
 import Pointer from "../utils/Pointer.js";
 import Scroll from "../utils/Scroll.js";
 
@@ -17,13 +19,20 @@ export default class Experience {
     this.scroll = new Scroll();
     this.clock = new THREE.Clock();
     this.running = true;
+    this.intro = { value: 0 }; // animated 0 -> 1 by the Preloader
+    this.ready = false;        // true once the first frame has been drawn
 
+    // Fewer particles on phones / small screens to protect the frame rate.
     const mobile = window.matchMedia("(max-width: 700px)").matches;
     this.particles = new Particles({
       count: mobile ? 35000 : 120000,
       pixelRatio: this.renderer.pixelRatio,
     });
     this.scene.add(this.particles.points);
+    this.ui = new UILayer();       // cards + page transition, drawn after post-processing
+    this.cursor = new Cursor();
+
+    // Post-processing is skipped on mobile to keep 60fps (per the spec).
     this.effects = mobile ? null : new Effects(this.renderer.instance, this.scene, this.camera.instance);
 
     this.onResize = this.onResize.bind(this);
@@ -41,14 +50,18 @@ export default class Experience {
     const time = this.clock.elapsedTime;
     this.scroll.update(time, delta);
     this.pointer.update(delta);
-    this.camera.update(delta, this.pointer, this.scroll);
-    this.particles.update(time, this.pointer, this.scroll, this.renderer.pixelRatio);
+    this.camera.update(delta, this.pointer, this.scroll, this.intro.value);
+    this.ui.update(time, delta, this.scroll.velocity);
+    this.cursor.update(delta);
+    this.particles.update(time, this.pointer, this.scroll, this.renderer.pixelRatio, this.intro.value);
     if (this.effects) {
       this.effects.update(this.scroll);
       this.effects.render(delta);
     } else {
       this.renderer.render(this.scene, this.camera.instance);
     }
+    this.ui.render(this.renderer.instance);
+    this.ready = true;
     this.raf = requestAnimationFrame(this.frame);
   }
 
@@ -56,6 +69,8 @@ export default class Experience {
     this.renderer.resize();
     this.camera.resize();
     if (this.effects) this.effects.resize(window.innerWidth, window.innerHeight);
+    this.ui.resize(window.innerWidth, window.innerHeight);
+    this.scroll.measure();
   }
 
   onVisibility() {
@@ -74,6 +89,8 @@ export default class Experience {
     window.removeEventListener("resize", this.onResize);
     document.removeEventListener("visibilitychange", this.onVisibility);
     if (this.effects) this.effects.dispose();
+    this.ui.dispose();
+    this.cursor.dispose();
     this.particles.dispose();
     this.pointer.dispose();
     this.scroll.dispose();

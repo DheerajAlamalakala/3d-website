@@ -10,7 +10,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet" />
   </head>
-  <body>
+  <body class="loading">
+    <div class="preloader" aria-hidden="true">
+      <div class="preloader-top"><span>FORM<i>·</i>FIELD</span><span>LOADING EXPERIENCE</span></div>
+      <div class="preloader-count"><span id="preloader-count">000</span><small>%</small></div>
+      <div class="preloader-line"><span id="preloader-bar"></span></div>
+    </div>
     <div id="app">
       <canvas class="webgl" aria-label="Interactive 3D background"></canvas>
       <main class="content">
@@ -28,11 +33,17 @@
           <div class="hero-bottom"><span>SCROLL TO EXPLORE</span><span class="scroll-line"></span><span>01 — 04</span></div>
         </section>
         <section class="chapter" id="work"><p class="eyebrow">01 / SELECTED WORK</p><h2>IDEAS INTO<br />EXPERIENCES.</h2><p class="chapter-copy">We build digital worlds, interactive identities and experiences that move beyond the screen.</p></section>
+        <section class="projects" id="projects"><div class="work-grid"></div></section>
         <section class="chapter chapter-right" id="studio"><p class="eyebrow">02 / THE STUDIO</p><h2>CURIOUS BY<br />NATURE.</h2><p class="chapter-copy">A creative technology practice exploring the space between design, code and imagination.</p></section>
         <section class="chapter" id="contact"><p class="eyebrow">03 / START A CONVERSATION</p><h2>HAVE A GOOD<br />QUESTION?</h2><a class="contact-link" href="mailto:hello@formfield.studio">LET'S MAKE SOMETHING ↗</a></section>
         <footer class="footer"><span>FORM·FIELD © 2026</span><span>BUILT TO EXPLORE</span></footer>
       </main>
     </div>
+    <section class="project-view" aria-hidden="true" aria-label="Project details">
+      <div class="pv-top"><button class="pv-back" data-pv>← BACK</button><span class="pv-index" data-pv></span></div>
+      <h2 class="pv-title" data-pv></h2>
+      <div class="pv-bottom"><p class="pv-desc" data-pv></p><div class="pv-meta" data-pv></div></div>
+    </section>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
