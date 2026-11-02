@@ -26,11 +26,11 @@ attribute vec3  aPosC;      // morph target 2 (wave field)
 varying float vAlpha;
 varying float vMix;
 
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 // 3D simplex noise (Ashima Arts / Ian McEwan, MIT license).
 // Returns a smooth random value in -1..1 for any 3D coordinate. Nearby inputs
 // give nearby outputs, so moving through it over time = organic, flowing motion.
-// --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 vec3 mod289(vec3 x){ return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 mod289(vec4 x){ return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 permute(vec4 x){ return mod289(((x*34.0)+1.0)*x); }
@@ -41,7 +41,7 @@ float snoise(vec3 v){
   const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
   vec3 i  = floor(v + dot(v, C.yyy));
   vec3 x0 = v - i + dot(i, C.xxx);
-  vec3 g = step(x0.zxx, x0.xyz);
+  vec3 g = step(x0.yzx, x0.xyz);
   vec3 l = 1.0 - g;
   vec3 i1 = min(g.xyz, l.zxy);
   vec3 i2 = max(g.xyz, l.zxy);
@@ -50,11 +50,11 @@ float snoise(vec3 v){
   vec3 x3 = x0 - D.yyy;
   i = mod289(i);
   vec4 p = permute(permute(permute(
-           i.z + vec4(0.0, i1.z, i2.z, 1.0))
+            i.z + vec4(0.0, i1.z, i2.z, 1.0))
           + i.y + vec4(0.0, i1.y, i2.y, 1.0))
           + i.x + vec4(0.0, i1.x, i2.x, 1.0));
   float n_ = 0.142857142857;
-  vec3 ns = n_ * D.wyz - D.xxz;
+  vec3 ns = n_ * D.wyz - D.xzx;
   vec4 j  = p - 49.0 * floor(p * ns.z * ns.z);
   vec4 x_ = floor(j * ns.z);
   vec4 y_ = floor(j - 7.0 * x_);
@@ -66,7 +66,7 @@ float snoise(vec3 v){
   vec4 s0 = floor(b0) * 2.0 + 1.0;
   vec4 s1 = floor(b1) * 2.0 + 1.0;
   vec4 sh = -step(h, vec4(0.0));
-  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxy;
+  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
   vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
   vec3 p0 = vec3(a0.xy, h.x);
   vec3 p1 = vec3(a0.zw, h.y);
@@ -90,7 +90,7 @@ float seg(float k, float seed) {
 void main() {
   vec3 pos = position;                       // the particle's resting spot on the shape
 
-  // ---- MORPH between target shapes as the page scrolls ---------------------
+  // ---- MORPH between target shapes as the page scrolls ------------------------
   pos = mix(pos, aPosB, seg(uMorph, aSeed));          // knot  -> orb
   pos = mix(pos, aPosC, seg(uMorph - 1.0, aSeed));    // orb   -> wave field
   pos = mix(pos, position, seg(uMorph - 2.0, aSeed)); // field -> knot

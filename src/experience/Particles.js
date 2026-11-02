@@ -70,7 +70,7 @@ export default class Particles {
       }
       if (group !== 0) { ob.copy(o); oc.copy(o); }
       posB.set([ob.x, ob.y, ob.z], i * 3);
-      pos3.set([oc.x, oc.y, oc.z], i * 3);
+      posC.set([oc.x, oc.y, oc.z], i * 3);
       positions[i * 3] = o.x;
       positions[i * 3 + 1] = o.y;
       positions[i * 3 + 2] = o.z;
@@ -91,17 +91,23 @@ export default class Particles {
       vertexShader,
       fragmentShader,
       transparent: true,
-      depthWrite: false,
-      bending: THREE.AdditiveBlending,
+      depthWrite: false,                 // glowing dots shouldn't hide each other
+      blending: THREE.AdditiveBlending,  // overlapping dots add up to bright glow
       uniforms: {
-        uTime: { value: 0 }, uPointer: { value: new THREE.Vector3(99, 99, 0) }, uPointerStr: { value: 0 }, uScroll: { value: 0 },
-        uIntro: { value: 0 }, uMorph: { value: 0 }, uPixelRatio: { value: pixelRatio },
-        uColorA: { value: new THREE.Color(0x55ddeb) }, uColorB: { value: new THREE.Color(0x8a6bff) },
+        uTime: { value: 0 },
+        uPointer: { value: new THREE.Vector3(99, 99, 0) },
+        uPointerStr: { value: 0 },
+        uScroll: { value: 0 },
+        uIntro: { value: 0 },
+        uMorph: { value: 0 },
+        uPixelRatio: { value: pixelRatio },
+        uColorA: { value: new THREE.Color(0x55ddeb) },
+        uColorB: { value: new THREE.Color(0x8a6bff) },
       },
     });
 
     this.points = new THREE.Points(this.geometry, this.material);
-    this.points.frustumCulled = false;
+    this.points.frustumCulled = false; // vertex shader moves points; skip bounding-box culling
   }
 
   update(time, pointer, scroll, pixelRatio, intro = 1) {
