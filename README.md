@@ -1,152 +1,68 @@
-# AQUAVANT — 3D Marine Technology Experience
+# VITAL/FORM — Immersive Human Anatomy
 
-AQUAVANT is a cinematic, scroll-driven website concept for an autonomous marine rescue and response vessel. Built with Next.js, React, TypeScript, and Three.js, the experience combines a procedural 3D vessel, an animated ocean surface, and scroll-linked camera and component animations to present the concept as an interactive product story.
+VITAL/FORM is a futuristic, interactive human-anatomy website concept. It replaces the former marine concept with a digital anatomy atlas built around a procedural Three.js human figure, holographic visual language, interactive system explorer and optional WebXR immersive mode.
 
-> **Project status:** Visual concept / frontend prototype. The vessel is procedurally modelled in Three.js and is not an engineering-accurate or production-ready vessel design.
+> **Project status:** Educational visual prototype. The anatomy is stylised and procedural, not a clinically accurate anatomical model or a medical diagnostic tool.
 
-## Overview
+## Experience
 
-AQUAVANT presents a marine technology concept through a full-page visual narrative. As visitors scroll, the 3D scene changes perspective and the vessel moves through different presentation states. The page also introduces the concept's engineering and rescue-oriented features through supporting content sections.
+- Scroll-driven cinematic introduction with a live 3D anatomical figure.
+- Procedural human silhouette, skeletal framework, rib cage, brain, heart, lungs and illustrative nerve/vessel paths.
+- Animated holographic rings, scan plane, particles, atmospheric lighting and grid environment.
+- Interactive atlas for nervous, cardiovascular, skeletal and cellular systems.
+- Optional WebXR immersive VR session on supported devices and browsers.
+- Responsive navigation and layouts, with reduced-motion CSS support.
 
-## Features
+## Stack
 
-- **Procedural 3D vessel:** A marine craft assembled from Three.js geometries and materials.
-- **Scroll-driven presentation:** Scroll progress controls the scene's camera movement and vessel presentation.
-- **Animated water:** A continuously updated ocean surface adds motion to the scene.
-- **Exploded-view animation:** Selected vessel components move apart to create a component-focused view.
-- **Cinematic scene:** Lighting, fog, and scene composition create a focused marine-product presentation.
-- **Storytelling sections:** Chapter-style headings, engineering content, and a closing section guide visitors through the concept.
-- **Responsive interface:** Layout styling adapts the experience to different screen sizes.
-- **Iconography:** Lucide React icons support interface and content elements.
+- Next.js 14 / React 18 / TypeScript
+- Three.js WebGLRenderer and WebXR Device API
+- Lucide React icons
+- CSS animations and responsive styling
 
-## Technology stack
-
-| Technology | Purpose |
-| --- | --- |
-| Next.js 14 | React framework and application structure |
-| React 18 | UI and component rendering |
-| TypeScript | Type-safe application code |
-| Three.js | 3D scene, vessel geometry, materials, and animation |
-| Lucide React | Interface icons |
-| CSS | Layout, typography, visual styling, and responsive presentation |
-
-## Project structure
-
-```text
-3d-website/
-├── app/
-│   ├── globals.css   # Global styles and responsive presentation
-│   ├── layout.tsx    # Root application layout and metadata
-│   └── page.tsx      # Main AQUAVANT experience and Three.js scene
-├── .gitignore
-├── package.json
-├── README.md
-└── tsconfig.json
-```
-
-## Getting started
-
-### Prerequisites
-
-- Node.js compatible with Next.js 14
-- npm
-
-### 1. Clone the repository
+## Run locally
 
 ```bash
 git clone https://github.com/DheerajAlamalakala/3d-website.git
 cd 3d-website
-```
-
-### 2. Install dependencies
-
-```bash
 npm install
-```
-
-### 3. Start the development server
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open http://localhost:3000.
 
-## Available scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Starts the local development server |
-| `npm run build` | Creates an optimized production build |
-| `npm start` | Starts the production server after a successful build |
-
-To test a production build locally:
+For a production build:
 
 ```bash
 npm run build
 npm start
 ```
 
-## How the 3D experience works
+## WebXR
 
-The main experience is implemented in `app/page.tsx`.
+The site uses WebGL for its real-time 3D scene. The optional **Enter Immersive** control requests an `immersive-vr` WebXR session when the browser reports support. WebXR requires a compatible headset/browser and a secure context (HTTPS or localhost). Standard desktop and mobile browsing remains available without a headset.
 
-### Scene setup
+## Project structure
 
-Three.js creates the scene, camera, renderer, lighting, fog, water surface, and procedural vessel. The vessel is composed of individual meshes rather than loaded from an external CAD or 3D model file.
+```text
+app/
+  globals.css   # Visual system, responsive layout and motion
+  layout.tsx    # Metadata and root layout
+  page.tsx      # Anatomy scene, WebXR session and page experience
+```
 
-### Scroll-linked animation
+## Limitations and responsible use
 
-The page tracks scroll progress and uses it to update the camera and vessel presentation. The camera moves around and toward the craft as the visitor progresses through the story. Vessel rotation and scale also change with the presentation.
-
-### Animated ocean
-
-The water surface is built from geometry whose vertices are updated over time using wave functions, creating a simple animated ocean effect.
-
-### Exploded view
-
-Selected parts of the vessel—such as the cabin, roof, mast, sensor, and rescue ring—can move away from their assembled positions during the exploded-view portion of the scroll experience.
-
-## Customisation
-
-Useful starting points when adapting the project:
-
-- **Page content and scene behaviour:** `app/page.tsx`
-- **Global styling and responsive rules:** `app/globals.css`
-- **Root layout and metadata:** `app/layout.tsx`
-- **Dependencies and scripts:** `package.json`
-
-When changing the 3D scene, keep the animation lifecycle in mind. Any renderer, geometry, material, or event listener created by a React effect should be cleaned up when the component unmounts to avoid unnecessary resource usage.
+- Anatomy is a stylised educational visualisation and does not represent a validated medical model.
+- It must not be used for diagnosis, treatment, clinical training or medical decision-making.
+- The cellular section is a conceptual scale narrative; it is not yet a molecular simulation.
+- WebXR availability depends on the visitor's device, browser and secure context.
+- Rendering quality and frame rate vary by hardware. Real-world testing and optimisation are still required.
 
 ## Deployment
 
-The project can be deployed to [Vercel](https://vercel.com/) using its native Next.js support.
-
-1. Push the repository to GitHub.
-2. In Vercel, choose **Add New → Project**.
-3. Import `DheerajAlamalakala/3d-website`.
-4. Keep the framework preset as **Next.js** and the project root as `./`.
-5. Use the default install and build settings.
-6. Deploy.
-
-Vercel will build the Next.js application and provide a deployment URL. Subsequent pushes to the connected branch can trigger new deployments.
-
-## Current limitations
-
-- The vessel is a stylised procedural concept, not a dimensionally accurate marine vehicle.
-- The ocean and vessel visuals are illustrative and do not represent a validated physical simulation.
-- The project is a frontend experience; it does not currently provide vessel control, navigation, telemetry, or rescue-operation functionality.
-- The contact details and other example content should be replaced with verified project information before public or commercial use.
-- Performance will vary with device capabilities because the page renders a real-time 3D scene.
-
-## Possible future improvements
-
-- Replace or supplement procedural geometry with a detailed, optimised 3D asset.
-- Add reduced-motion handling and further accessibility refinements.
-- Profile and optimise rendering for lower-powered mobile devices.
-- Add real product specifications, validated imagery, and verified contact information.
-- Introduce genuine product data or backend integrations if the concept evolves beyond a visual prototype.
+Connect the repository to Vercel with the Next.js framework preset, project root `./`, and default build/output settings. Pushes to the connected branch trigger deployments.
 
 ## License
 
-No license is currently specified for this repository. Unless a license is added, the source code remains subject to the default copyright rules; do not assume it is open for reuse or redistribution.
+No license is specified. All rights remain with the respective copyright holder unless a license is added.
