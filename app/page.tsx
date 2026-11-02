@@ -9,6 +9,7 @@ import {
   Aperture,
   Compass,
   Crosshair,
+  Glasses,
   Menu,
   MoveUpRight,
   Radio,
@@ -117,6 +118,10 @@ function OceanStage() {
   const progressRef = useRef(0);
   const [activeChapter, setActiveChapter] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [xrAvailable, setXrAvailable] = useState(false);
+  const [xrActive, setXrActive] = useState(false);
+  const [xrMessage, setXrMessage] = useState("IMMERSIVE MODE / OPTIONAL");
+  const xrRequestRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -134,6 +139,8 @@ function OceanStage() {
       mount.classList.add("webgl-unavailable");
       return;
     }
+
+    renderer.xr.enabled = true;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#06131b");
@@ -532,8 +539,8 @@ function OceanStage() {
       new THREE.Vector3(10, 7.2, 14)
     ]);
 
-    let frame = 0;
     let time = 0;
+    let activeSession: any = null;
     let pointerX = 0;
     let pointerY = 0;
     let targetPointerX = 0;
@@ -568,6 +575,42 @@ function OceanStage() {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
     };
 
+    const xr = (navigator as Navigator & { xr?: any }).xr;
+    if (xr && typeof xr.isSessionSupported === "function") {
+      xr.isSessionSupported("immersive-vr").then((supported: boolean) => setXrAvailable(supported)).catch(() => setXrAvailable(false));
+    }
+
+    xrRequestRef.current = async () => {
+      if (!xr || !renderer.xr.enabled) {
+        setXrMessage("WEBXR NOT AVAILABLE ON THIS DEVICE");
+        return;
+      }
+      if (activeSession) {
+        await activeSession.end();
+        return;
+      }
+      try {
+        setXrMessage("CONNECTING TO IMMERSIVE VIEW…");
+        const session = await xr.requestSession("immersive-vr", {
+          optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"]
+        });
+        activeSession = session;
+        session.addEventListener("end", () => {
+          activeSession = null;
+          setXrActive(false);
+          setXrMessage("IMMERSIVE MODE / OPTIONAL");
+        }, { once: true });
+        camera.position.set(0, 1.65, 9.5);
+        camera.lookAt(0, 0.2, 0);
+        await renderer.xr.setSession(session);
+        setXrActive(true);
+        setXrMessage("IMMERSIVE SESSION ACTIVE");
+      } catch (error) {
+        setXrMessage(error instanceof Error ? error.message.toUpperCase() : "UNABLE TO START IMMERSIVE VIEW");
+        setXrActive(false);
+      }
+    };
+
     window.addEventListener("scroll", updateProgress, { passive: true });
     window.addEventListener("resize", onResize);
     window.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -575,24 +618,20 @@ function OceanStage() {
     onResize();
 
     const animate = () => {
-      frame = requestAnimationFrame(animate);
       time = clock.getElapsedTime();
       const p = progressRef.current;
 
       pointerX = THREE.MathUtils.lerp(pointerX, targetPointerX, 0.035);
       pointerY = THREE.MathUtils.lerp(pointerY, targetPointerY, 0.035);
 
-      const desiredCamera = cameraPath.getPointAt(p);
-      desiredCamera.x += pointerX * 0.68;
-      desiredCamera.y += -pointerY * 0.32;
-      camera.position.lerp(desiredCamera, 0.035);
-
-      const lookTarget = new THREE.Vector3(
-        pointerX * 0.38,
-        0.1 - pointerY * 0.18,
-        -0.05
-      );
-      camera.lookAt(lookTarget);
+      if (!renderer.xr.isPresenting) {
+        const desiredCamera = cameraPath.getPointAt(p);
+        desiredCamera.x += pointerX * 0.68;
+        desiredCamera.y += -pointerY * 0.32;
+        camera.position.lerp(desiredCamera, 0.035);
+        const lookTarget = new THREE.Vector3(pointerX * 0.38, 0.1 - pointerY * 0.18, -0.05);
+        camera.lookAt(lookTarget);
+      }
 
       boat.position.y = 0.37 + Math.sin(time * 1.15) * 0.055;
       boat.rotation.y = -0.16 + Math.sin(time * 0.22) * 0.035 + p * 0.72;
@@ -622,10 +661,12 @@ function OceanStage() {
       renderer.render(scene, camera);
     };
 
-    animate();
+    renderer.setAnimationLoop(animate);
 
     return () => {
-      cancelAnimationFrame(frame);
+      renderer.setAnimationLoop(null);
+      xrRequestRef.current = null;
+      if (activeSession) activeSession.end().catch(() => undefined);
       window.removeEventListener("scroll", updateProgress);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointermove", onPointerMove);
@@ -672,6 +713,11 @@ function OceanStage() {
             </a>
           )}
         </div>
+
+        <button className="xr-launch" onClick={() => xrRequestRef.current?.()} disabled={!xrAvailable && !xrActive} aria-label={xrActive ? "Exit immersive mode" : "Enter immersive mode"}>
+          <Glasses size={15} /> <span>{xrActive ? "EXIT IMMERSIVE" : "ENTER IMMERSIVE"}</span>
+        </button>
+        <div className="xr-status" aria-live="polite">{xrMessage}</div>
 
         <div className="hero-spec">
           <span className="spec-label">AUTONOMOUS MARINE SYSTEMS</span>
