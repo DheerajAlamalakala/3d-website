@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { Activity, ArrowDown, ArrowRight, ArrowUpRight, Brain, Dna, Eye, HeartPulse, Menu, Microscope, Orbit, Scan, Shield, Sparkles, X, Zap } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUpRight, Brain, Dna, HeartPulse, Menu, Scan, Sparkles, X } from "lucide-react";
 
 const chapters = [
   { tag: "01 / THE HUMAN FRONTIER", title: "THE HUMAN\nBODY, IN MOTION.", body: "A living architecture of systems, signals and structures. Move closer to the extraordinary design beneath the surface." },
