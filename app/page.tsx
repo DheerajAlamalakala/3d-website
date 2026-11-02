@@ -144,7 +144,7 @@ function AnatomyStage() {
 
     const dustCount=mobile?1500:4200;
     const dustPositions=new Float32Array(dustCount*3);
-    const dustSeeds=new Float32Array(dustCount);
+    const dustSeeds=new Float32Array(dustCount);\n    const dustSizes=new Float32Array(dustCount);
     const dustColors=new Float32Array(dustCount*3);
     for(let i=0;i<dustCount;i++){
       const radius=2.0+Math.random()*6.5;
@@ -159,11 +159,51 @@ function AnatomyStage() {
     }
     const dustGeometry=new THREE.BufferGeometry();
     dustGeometry.setAttribute("position",new THREE.BufferAttribute(dustPositions,3));
-    dustGeometry.setAttribute("color",new THREE.BufferAttribute(dustColors,3));
-    const dust=new THREE.Points(dustGeometry,new THREE.PointsMaterial({
-      size:mobile?.018:.014,vertexColors:true,transparent:true,opacity:.58,
-      depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true
-    }));
+    dustGeometry.setAttribute("color",new THREE.BufferAttribute(dustColors,3));\n    dustGeometry.setAttribute("aSize",new THREE.BufferAttribute(dustSizes,1));
+    const dustMaterial=new THREE.ShaderMaterial({
+      uniforms:{uTime:{value:0},uPointer:{value:new THREE.Vector2()},uPixelRatio:{value:Math.min(window.devicePixelRatio||1,1.5)}},
+      vertexShader:`
+        attribute vec3 color;
+        attribute float aSize;
+        uniform float uTime;
+        uniform vec2 uPointer;
+        uniform float uPixelRatio;
+        varying vec3 vColor;
+        varying float vFade;
+        void main(){
+          vec3 p=position;
+          float angle=uTime*(.035+length(position)*.002)+position.y*.025;
+          mat2 spin=mat2(cos(angle),-sin(angle),sin(angle),cos(angle));
+          p.xz=spin*p.xz;
+          float wave=sin(position.x*1.8+uTime*.34)+cos(position.z*1.5-uTime*.26);
+          p.y+=wave*.09+sin(uTime*.22+position.x)*.07;
+          vec2 cursor=uPointer*vec2(4.0,2.5);
+          vec2 delta=p.xy-cursor;
+          float influence=exp(-dot(delta,delta)*.16);
+          p.xy+=normalize(delta+vec2(.001)) * influence*.24;
+          vec4 mv=modelViewMatrix*vec4(p,1.0);
+          gl_Position=projectionMatrix*mv;
+          gl_PointSize=clamp(aSize*uPixelRatio*(36.0/-mv.z),1.0,15.0);
+          vColor=color;
+          vFade=clamp((12.0+mv.z)/12.0,0.0,1.0);
+        }
+      `,
+      fragmentShader:`
+        varying vec3 vColor;
+        varying float vFade;
+        void main(){
+          vec2 uv=gl_PointCoord-.5;
+          float d=length(uv);
+          float core=1.0-smoothstep(.02,.19,d);
+          float halo=1.0-smoothstep(.08,.5,d);
+          float alpha=(core*.8+halo*.18)*vFade;
+          if(alpha<.008)discard;
+          gl_FragColor=vec4(vColor,alpha);
+        }
+      `,
+      transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
+    });
+    const dust=new THREE.Points(dustGeometry,dustMaterial);
     scene.add(dust);
 
     // Cursor trails: a fading, fluid-like filament that follows pointer movement.
@@ -232,7 +272,7 @@ function AnatomyStage() {
       trailMaterial.opacity=.2+Math.min(.45,trailPoints.length/trailLength*.45);
       camera.position.x=THREE.MathUtils.lerp(camera.position.x,pointerX*.2,.025);
       camera.position.y=THREE.MathUtils.lerp(camera.position.y,-pointerY*.13,.025);
-      camera.position.z=10.2-p*.55;
+      camera.position.z=10.2-p*.85;\n      core.position.x=2.05+Math.sin(p*Math.PI*2)*.18;\n      core.position.y=Math.sin(t*.32)*.075+Math.sin(p*Math.PI)*.12;\n      halo.position.copy(core.position);
       camera.lookAt(.45,0,0);
       renderer.render(scene,camera);
     });
