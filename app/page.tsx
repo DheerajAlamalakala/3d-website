@@ -99,6 +99,7 @@ function AnatomyStage() {
           varying vec3 vPosition;
           varying vec3 vWorld;
           uniform float uTime;
+          uniform float uScroll;
           void main(){
             vNormal=normalize(normalMatrix*normal);
             vec3 p=position;
@@ -320,6 +321,7 @@ function AnatomyStage() {
 
     renderer.setAnimationLoop(()=>{
       const t=clock.getElapsedTime(),p=progressRef.current;
+      scrollVelocity*=.92;
       pointerX=THREE.MathUtils.lerp(pointerX,targetX,.035);
       pointerY=THREE.MathUtils.lerp(pointerY,targetY,.035);
       core.rotation.y=t*.09+pointerX*.12+p*.22+scrollVelocity*.035;
