@@ -1,697 +1,903 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { ArrowDown, ArrowUpRight, Menu, X, Waves } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUpRight,
+  Aperture,
+  Compass,
+  Crosshair,
+  Menu,
+  MoveUpRight,
+  Radio,
+  Waves,
+  X
+} from "lucide-react";
 
 const chapters = [
   {
-    number: "01",
-    label: "THE OPENING",
-    title: "A new perspective\non the water.",
-    body: "A new generation of intelligent marine systems begins with a different point of view."
+    eyebrow: "01 / THE NEW FRONTIER",
+    title: "THE OCEAN IS\nOUR NEXT FRONTIER.",
+    description: "A new generation of autonomous marine systems. Designed to read the water, understand the unknown and move with intent."
   },
   {
-    number: "02",
-    label: "THE APPROACH",
-    title: "Designed for\nwhat matters.",
-    body: "A compact, capable platform built to move through demanding environments with purpose."
+    eyebrow: "02 / AWARENESS IN EVERY DIRECTION",
+    title: "SEE WHAT\nLIES BENEATH.",
+    description: "Sensing, navigation and intelligence converge to turn complex environments into a clearer picture."
   },
   {
-    number: "03",
-    label: "THE DETAILS",
-    title: "Every detail\nhas a purpose.",
-    body: "Propulsion, sensing and control come together in one integrated marine platform."
+    eyebrow: "03 / ENGINEERED TO ADAPT",
+    title: "BUILT TO\nMOVE DIFFERENTLY.",
+    description: "A modular twin-hull platform concept shaped around stability, manoeuvrability and mission flexibility."
   },
   {
-    number: "04",
-    label: "THE SYSTEM",
-    title: "More than\na vessel.",
-    body: "A modular architecture makes room for new payloads and new missions."
-  },
-  {
-    number: "05",
-    label: "THE FUTURE",
-    title: "Ready for the\nnext horizon.",
-    body: "Built to help people see further and understand our waterways."
+    eyebrow: "04 / THE HUMAN OUTCOME",
+    title: "MORE AWARENESS.\nBETTER RESPONSE.",
+    description: "Technology with a purpose: helping people make better decisions on the water and beyond the shoreline."
   }
 ];
 
-function ThreeExperience() {
+const missions = [
+  {
+    id: "rescue",
+    number: "01",
+    label: "SEARCH & RESCUE",
+    title: "Find the signal.\nClose the distance.",
+    body: "An autonomous platform concept for faster situational awareness, search patterns and support in challenging marine conditions.",
+    stat: "RAPID RESPONSE",
+    detail: "SEARCH / LOCATE / SUPPORT"
+  },
+  {
+    id: "survey",
+    number: "02",
+    label: "OCEAN SURVEY",
+    title: "Read the water.\nReveal the unseen.",
+    body: "A flexible sensing platform imagined for environmental observation, waterway mapping and persistent data collection.",
+    stat: "WIDE-AREA AWARENESS",
+    detail: "MAP / MEASURE / UNDERSTAND"
+  },
+  {
+    id: "patrol",
+    number: "03",
+    label: "MARITIME AWARENESS",
+    title: "Stay aware.\nStay ahead.",
+    body: "Connected perception and adaptable payloads create a foundation for monitoring coastlines, waterways and sensitive zones.",
+    stat: "CONTINUOUS OBSERVATION",
+    detail: "OBSERVE / IDENTIFY / INFORM"
+  }
+];
+
+function makePontoon(offsetX: number, material: THREE.Material) {
+  const geometry = new THREE.BufferGeometry();
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const longitudinal = 42;
+  const radial = 20;
+
+  for (let i = 0; i <= longitudinal; i++) {
+    const t = i / longitudinal;
+    const z = -3.65 + t * 7.25;
+    const fullness = Math.pow(Math.max(0.015, Math.sin(Math.PI * t)), 0.48);
+    const width = 0.075 + 0.62 * fullness;
+    const height = 0.12 + 0.22 * fullness;
+
+    for (let j = 0; j <= radial; j++) {
+      const a = (j / radial) * Math.PI * 2;
+      vertices.push(
+        offsetX + Math.cos(a) * width,
+        -0.16 + Math.sin(a) * height,
+        z
+      );
+    }
+  }
+
+  for (let i = 0; i < longitudinal; i++) {
+    for (let j = 0; j < radial; j++) {
+      const a = i * (radial + 1) + j;
+      const b = a + radial + 1;
+      indices.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const hull = new THREE.Mesh(geometry, material);
+  hull.castShadow = true;
+  hull.receiveShadow = true;
+  return hull;
+}
+
+function OceanStage() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const sequenceRef = useRef<HTMLElement>(null);
+  const progressRef = useRef(0);
+  const [activeChapter, setActiveChapter] = useState(0);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const mount = mountRef.current;
-    if (!mount) return;
+    const sequence = sequenceRef.current;
+    if (!mount || !sequence) return;
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance"
+      });
+    } catch {
+      mount.classList.add("webgl-unavailable");
+      return;
+    }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#071519");
-    scene.fog = new THREE.FogExp2("#071519", 0.027);
+    scene.background = new THREE.Color("#06131b");
+    scene.fog = new THREE.FogExp2("#06131b", 0.012);
 
-    const camera = new THREE.PerspectiveCamera(
-      38,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      180
-    );
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 260);
+    camera.position.set(10, 7, 14);
 
-    camera.position.set(0, 7, 18);
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false
-    });
-
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-
+    renderer.toneMappingExposure = 1.22;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
 
-    scene.add(new THREE.HemisphereLight(0xb9e4e2, 0x14252a, 2));
+    const hemisphere = new THREE.HemisphereLight(0xb6e4ec, 0x101b24, 1.7);
+    scene.add(hemisphere);
 
-    const light = new THREE.DirectionalLight(0xe9f7ee, 3.2);
-    light.position.set(-7, 12, 8);
-    scene.add(light);
+    const keyLight = new THREE.DirectionalLight(0xfff1d8, 4.1);
+    keyLight.position.set(-9, 16, 10);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    scene.add(keyLight);
 
-    const rim = new THREE.PointLight(0x68d6ce, 85, 32);
-    rim.position.set(7, 3, -6);
-    scene.add(rim);
+    const rimLight = new THREE.PointLight(0x36d9d0, 115, 38, 2);
+    rimLight.position.set(8, 4, -7);
+    scene.add(rimLight);
 
-    const waterGeometry = new THREE.PlaneGeometry(160, 160, 100, 100);
+    const horizonLight = new THREE.PointLight(0x2f91a5, 68, 70, 2);
+    horizonLight.position.set(-18, 3, -32);
+    scene.add(horizonLight);
+
+    const sun = new THREE.Mesh(
+      new THREE.SphereGeometry(1.7, 32, 24),
+      new THREE.MeshBasicMaterial({ color: 0xffd9a3 })
+    );
+    sun.position.set(-24, 19, -66);
+    scene.add(sun);
+
+    const sunGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(4.4, 32, 24),
+      new THREE.MeshBasicMaterial({
+        color: 0xffb86c,
+        transparent: true,
+        opacity: 0.08,
+        side: THREE.BackSide,
+        depthWrite: false
+      })
+    );
+    sunGlow.position.copy(sun.position);
+    scene.add(sunGlow);
+
+    const waterGeometry = new THREE.PlaneGeometry(220, 220, 190, 190);
     waterGeometry.rotateX(-Math.PI / 2);
 
-    const waterMaterial = new THREE.MeshStandardMaterial({
-      color: "#12363b",
-      roughness: 0.32,
-      metalness: 0.35
+    const waterMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uDeep: { value: new THREE.Color("#04141e") },
+        uMid: { value: new THREE.Color("#0c3b48") },
+        uShallow: { value: new THREE.Color("#237c83") }
+      },
+      vertexShader: [
+        "uniform float uTime;",
+        "varying vec3 vWorldPosition;",
+        "varying vec3 vNormal;",
+        "varying float vWave;",
+        "void main(){",
+        "vec3 p=position;",
+        "float a=sin(p.x*0.105+uTime*0.72)*0.19;",
+        "float b=cos(p.z*0.12+uTime*0.58)*0.15;",
+        "float c=sin((p.x+p.z)*0.072+uTime*0.42)*0.10;",
+        "p.y+=a+b+c;",
+        "float dx=0.020*cos(p.x*0.105+uTime*0.72)+0.0072*cos((p.x+p.z)*0.072+uTime*0.42);",
+        "float dz=-0.018*cos(p.z*0.12+uTime*0.58)+0.0072*cos((p.x+p.z)*0.072+uTime*0.42);",
+        "vNormal=normalize(vec3(-dx,1.0,-dz));",
+        "vWave=a+b+c;",
+        "vec4 world=modelMatrix*vec4(p,1.0);",
+        "vWorldPosition=world.xyz;",
+        "gl_Position=projectionMatrix*viewMatrix*world;",
+        "}"
+      ].join("\n"),
+      fragmentShader: [
+        "uniform float uTime;",
+        "uniform vec3 uDeep;",
+        "uniform vec3 uMid;",
+        "uniform vec3 uShallow;",
+        "varying vec3 vWorldPosition;",
+        "varying vec3 vNormal;",
+        "varying float vWave;",
+        "void main(){",
+        "vec3 n=normalize(vNormal);",
+        "vec3 viewDir=normalize(cameraPosition-vWorldPosition);",
+        "float fresnel=pow(1.0-max(dot(n,viewDir),0.0),2.7);",
+        "float bands=sin(vWorldPosition.x*0.26+vWorldPosition.z*0.17+uTime*1.35);",
+        "float glint=smoothstep(0.72,0.98,bands+vWave*1.8)*0.48;",
+        "float depth=clamp(0.42+vWave*0.55+fresnel*0.35,0.0,1.0);",
+        "vec3 color=mix(uDeep,uMid,depth);",
+        "color=mix(color,uShallow,glint*0.55+fresnel*0.32);",
+        "color+=vec3(0.36,0.74,0.72)*glint*0.17;",
+        "float distanceFade=smoothstep(105.0,12.0,length(vWorldPosition.xz));",
+        "color=mix(vec3(0.025,0.065,0.085),color,distanceFade*0.9+0.1);",
+        "gl_FragColor=vec4(color,1.0);",
+        "}"
+      ].join("\n"),
+      side: THREE.DoubleSide
     });
 
     const water = new THREE.Mesh(waterGeometry, waterMaterial);
-    water.position.y = -1.35;
+    water.position.y = -0.78;
+    water.receiveShadow = true;
     scene.add(water);
 
-    const positions = waterGeometry.attributes.position;
-    const original = Float32Array.from(positions.array);
-
-    const grid = new THREE.GridHelper(120, 70, 0x2a6666, 0x174247);
-    grid.position.y = -1.31;
-    (grid.material as THREE.Material).transparent = true;
-    (grid.material as THREE.Material).opacity = 0.18;
-    scene.add(grid);
-
-    // Create the autonomous boat.
     const boat = new THREE.Group();
+    boat.position.y = 0.37;
     scene.add(boat);
 
-    const hullMaterial = new THREE.MeshStandardMaterial({
-      color: "#d9e1d9",
-      metalness: 0.58,
-      roughness: 0.28
+    const hullMaterial = new THREE.MeshPhysicalMaterial({
+      color: "#e5e8e0",
+      metalness: 0.48,
+      roughness: 0.26,
+      clearcoat: 0.82,
+      clearcoatRoughness: 0.18
     });
-
-    const darkMaterial = new THREE.MeshStandardMaterial({
-      color: "#14262a",
-      metalness: 0.7,
-      roughness: 0.25
-    });
-
-    const accentMaterial = new THREE.MeshStandardMaterial({
-      color: "#c9e56f",
-      metalness: 0.28,
+    const lowerHullMaterial = new THREE.MeshStandardMaterial({
+      color: "#20373d",
+      metalness: 0.62,
       roughness: 0.3
     });
-
+    const deckMaterial = new THREE.MeshStandardMaterial({
+      color: "#172a30",
+      metalness: 0.72,
+      roughness: 0.31
+    });
+    const accentMaterial = new THREE.MeshStandardMaterial({
+      color: "#c6f16f",
+      metalness: 0.36,
+      roughness: 0.26,
+      emissive: "#4c6819",
+      emissiveIntensity: 0.28
+    });
     const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: "#3e8d91",
-      metalness: 0.65,
-      roughness: 0.12,
+      color: "#347c88",
+      metalness: 0.24,
+      roughness: 0.09,
+      transmission: 0.16,
       transparent: true,
-      opacity: 0.82
+      opacity: 0.9,
+      clearcoat: 1
+    });
+    const blackGlass = new THREE.MeshPhysicalMaterial({
+      color: "#07151e",
+      metalness: 0.52,
+      roughness: 0.1,
+      clearcoat: 1
     });
 
-    const orangeMaterial = new THREE.MeshStandardMaterial({
-      color: "#e78b48"
-    });
-
-    function makeHull(side: number) {
-      const shape = new THREE.Shape();
-
-      shape.moveTo(-3.3, -0.72);
-      shape.lineTo(2.9, -0.72);
-      shape.lineTo(3.55, -0.38);
-      shape.lineTo(3.1, 0.22);
-      shape.lineTo(-2.85, 0.22);
-      shape.lineTo(-3.45, -0.2);
-      shape.closePath();
-
-      const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: 0.72,
-        bevelEnabled: true,
-        bevelSegments: 3,
-        bevelSize: 0.12,
-        bevelThickness: 0.12
-      });
-
-      geometry.rotateY(Math.PI / 2);
-
-      const mesh = new THREE.Mesh(geometry, hullMaterial);
-      mesh.position.set(side * 1.05, -0.05, 0.36);
-      boat.add(mesh);
-    }
-
-    makeHull(-1);
-    makeHull(1);
-
-    const deck = new THREE.Mesh(
-      new THREE.BoxGeometry(5.5, 0.18, 1.8),
-      darkMaterial
-    );
-
-    deck.position.set(0, 0.24, 0);
-    boat.add(deck);
-
-    const cabin = new THREE.Mesh(
-      new THREE.BoxGeometry(1.75, 0.95, 1.18),
-      glassMaterial
-    );
-
-    cabin.position.set(-0.25, 0.78, 0);
-    boat.add(cabin);
-
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(2, 0.14, 1.42),
-      accentMaterial
-    );
-
-    roof.position.set(-0.25, 1.32, 0);
-    boat.add(roof);
-
-    const mast = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.05, 1.1, 10),
-      darkMaterial
-    );
-
-    mast.position.set(-1.35, 1.65, 0);
-    boat.add(mast);
-
-    const sensor = new THREE.Mesh(
-      new THREE.SphereGeometry(0.19, 20, 16),
-      accentMaterial
-    );
-
-    sensor.position.set(-1.35, 2.22, 0);
-    boat.add(sensor);
-
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.48, 0.13, 12, 40),
-      orangeMaterial
-    );
-
-    ring.position.set(0.9, 0.6, 0.05);
-    ring.rotation.x = Math.PI / 2;
-    boat.add(ring);
-
-    const nose = new THREE.Mesh(
-      new THREE.ConeGeometry(0.75, 1.35, 4),
-      hullMaterial
-    );
-
-    nose.rotation.z = -Math.PI / 2;
-    nose.rotation.y = Math.PI / 4;
-    nose.position.set(3.1, 0.04, 0);
-    boat.add(nose);
+    boat.add(makePontoon(-1.34, hullMaterial));
+    boat.add(makePontoon(1.34, hullMaterial));
 
     for (const side of [-1, 1]) {
-      const rail = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.035, 0.035, 5, 8),
+      const lower = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 0.075, 5.25),
+        lowerHullMaterial
+      );
+      lower.position.set(side * 1.34, -0.31, -0.05);
+      boat.add(lower);
+
+      const chine = new THREE.Mesh(
+        new THREE.BoxGeometry(0.035, 0.035, 5.9),
         accentMaterial
       );
+      chine.position.set(side * 1.79, -0.12, -0.1);
+      boat.add(chine);
 
-      rail.rotation.z = Math.PI / 2;
-      rail.position.set(0, 0.55, side * 0.83);
+      const railCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(side * 1.05, 0.65, -2.9),
+        new THREE.Vector3(side * 1.6, 0.65, -1.9),
+        new THREE.Vector3(side * 1.7, 0.65, 1.7),
+        new THREE.Vector3(side * 1.25, 0.65, 3.0)
+      ]);
+      const rail = new THREE.Mesh(
+        new THREE.TubeGeometry(railCurve, 44, 0.026, 7, false),
+        accentMaterial
+      );
       boat.add(rail);
 
-      const propeller = new THREE.Mesh(
-        new THREE.TorusGeometry(0.38, 0.055, 10, 28),
+      const thruster = new THREE.Group();
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.09, 0.66, 18),
+        deckMaterial
+      );
+      shaft.rotation.x = Math.PI / 2;
+      shaft.position.z = -3.36;
+      thruster.add(shaft);
+
+      const prop = new THREE.Mesh(
+        new THREE.TorusGeometry(0.24, 0.045, 10, 28),
         accentMaterial
       );
+      prop.position.z = -3.7;
+      thruster.add(prop);
 
-      propeller.position.set(-3.35, -0.15, side * 1.05);
-      propeller.rotation.y = Math.PI / 2;
-      boat.add(propeller);
+      for (let blade = 0; blade < 3; blade++) {
+        const fin = new THREE.Mesh(
+          new THREE.BoxGeometry(0.055, 0.32, 0.11),
+          lowerHullMaterial
+        );
+        fin.position.z = -3.69;
+        fin.rotation.z = (blade / 3) * Math.PI * 2;
+        thruster.add(fin);
+      }
+      thruster.position.x = side * 1.34;
+      boat.add(thruster);
     }
 
-    // Floating technical points.
-    const points = new THREE.Group();
-    scene.add(points);
+    const deck = new THREE.Mesh(
+      new THREE.BoxGeometry(3.72, 0.18, 5.35),
+      deckMaterial
+    );
+    deck.position.set(0, 0.28, -0.05);
+    deck.castShadow = true;
+    boat.add(deck);
 
-    for (let i = 0; i < 28; i++) {
-      const angle = (i / 28) * Math.PI * 2;
-      const radius = 4.8 + (i % 4) * 0.45;
+    const foreDeck = new THREE.Mesh(
+      new THREE.BoxGeometry(2.05, 0.09, 1.22),
+      hullMaterial
+    );
+    foreDeck.position.set(0, 0.42, 2.2);
+    boat.add(foreDeck);
 
-      const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(0.035, 8, 8),
-        accentMaterial
-      );
+    const cabin = new THREE.Group();
+    boat.add(cabin);
 
-      dot.position.set(
-        Math.cos(angle) * radius,
-        0.25 + (i % 5) * 0.32,
-        Math.sin(angle) * radius
-      );
+    const cabinBase = new THREE.Mesh(
+      new THREE.BoxGeometry(2.1, 0.18, 2.25),
+      lowerHullMaterial
+    );
+    cabinBase.position.y = 0.48;
+    cabin.add(cabinBase);
 
-      points.add(dot);
-    }
+    const cabinShell = new THREE.Mesh(
+      new THREE.BoxGeometry(1.88, 1.06, 1.95),
+      glassMaterial
+    );
+    cabinShell.position.set(0, 1.08, 0.14);
+    cabin.add(cabinShell);
 
-    // Atmospheric scan field: a luminous sensor cone and rotating radar rings.
-    const scanBeam = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 2.25, 7.5, 48, 1, true),
+    const frontWindow = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.53, 0.64),
+      blackGlass
+    );
+    frontWindow.position.set(0, 1.18, 1.13);
+    cabin.add(frontWindow);
+
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(2.35, 0.18, 2.34),
+      hullMaterial
+    );
+    roof.position.set(0, 1.67, 0.13);
+    cabin.add(roof);
+
+    const roofPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(1.3, 0.025, 1.02),
+      accentMaterial
+    );
+    roofPanel.position.set(0, 1.78, 0.13);
+    cabin.add(roofPanel);
+
+    const sensorMount = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.11, 0.92, 12),
+      deckMaterial
+    );
+    sensorMount.position.set(0, 2.18, -0.42);
+    cabin.add(sensorMount);
+
+    const sensorHead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 24, 18),
+      accentMaterial
+    );
+    sensorHead.position.set(0, 2.69, -0.42);
+    cabin.add(sensorHead);
+
+    const sensorBand = new THREE.Mesh(
+      new THREE.TorusGeometry(0.29, 0.025, 8, 48),
+      new THREE.MeshBasicMaterial({ color: 0x9affef, transparent: true, opacity: 0.88 })
+    );
+    sensorBand.position.copy(sensorHead.position);
+    sensorBand.rotation.x = Math.PI / 2;
+    cabin.add(sensorBand);
+
+    const antenna = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.022, 1.04, 8),
+      hullMaterial
+    );
+    antenna.position.set(0.7, 2.24, -0.25);
+    cabin.add(antenna);
+
+    const antennaTip = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 12, 10),
+      new THREE.MeshBasicMaterial({ color: 0xff8a57 })
+    );
+    antennaTip.position.set(0.7, 2.78, -0.25);
+    cabin.add(antennaTip);
+
+    const sensorBeam = new THREE.Mesh(
+      new THREE.ConeGeometry(2.9, 4.2, 48, 1, true),
       new THREE.MeshBasicMaterial({
-        color: 0x58f3e2,
+        color: 0x54e8d6,
         transparent: true,
-        opacity: 0.055,
+        opacity: 0.045,
         side: THREE.DoubleSide,
         depthWrite: false,
         blending: THREE.AdditiveBlending
       })
     );
-    scanBeam.position.set(-1.35, 4.2, 0);
-    boat.add(scanBeam);
+    sensorBeam.position.set(0, 0.56, -0.42);
+    cabin.add(sensorBeam);
 
-    const sensorHalo = new THREE.Mesh(
-      new THREE.TorusGeometry(0.42, 0.018, 8, 64),
-      new THREE.MeshBasicMaterial({ color: 0xc9f77a, transparent: true, opacity: 0.9 })
-    );
-    sensorHalo.position.copy(sensor.position);
-    sensorHalo.rotation.x = Math.PI / 2;
-    boat.add(sensorHalo);
-
-    const radarGroup = new THREE.Group();
-    scene.add(radarGroup);
-    const radarRings: THREE.Mesh[] = [];
-    for (let i = 0; i < 3; i++) {
-      const ringMesh = new THREE.Mesh(
-        new THREE.RingGeometry(4.2 + i * 1.45, 4.23 + i * 1.45, 128),
+    const scanRings = new THREE.Group();
+    scene.add(scanRings);
+    const scanRingMeshes: THREE.Mesh[] = [];
+    for (let i = 0; i < 4; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(4.1 + i * 1.8, 0.012, 6, 180),
         new THREE.MeshBasicMaterial({
-          color: i === 0 ? 0x9af4e6 : 0x3daaa7,
+          color: i === 0 ? 0x8cf8df : 0x35aab0,
           transparent: true,
-          opacity: 0.26 - i * 0.055,
-          side: THREE.DoubleSide,
+          opacity: 0.28 - i * 0.045,
           blending: THREE.AdditiveBlending,
           depthWrite: false
         })
       );
-      ringMesh.rotation.x = -Math.PI / 2;
-      ringMesh.position.y = -1.18 + i * 0.008;
-      radarGroup.add(ringMesh);
-      radarRings.push(ringMesh);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = -0.69 + i * 0.004;
+      scanRings.add(ring);
+      scanRingMeshes.push(ring);
     }
 
-    // Suspended bioluminescent particles create depth around the craft.
-    const particleCount = 1100;
-    const particlePositions = new Float32Array(particleCount * 3);
-    const particleSeeds = new Float32Array(particleCount);
-    for (let i = 0; i < particleCount; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const r = 5 + Math.random() * 28;
-      particlePositions[i * 3] = Math.cos(a) * r;
-      particlePositions[i * 3 + 1] = -0.8 + Math.random() * 13;
-      particlePositions[i * 3 + 2] = Math.sin(a) * r;
-      particleSeeds[i] = Math.random() * Math.PI * 2;
-    }
-    const particleGeometry = new THREE.BufferGeometry();
-    particleGeometry.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
-    const particleMaterial = new THREE.PointsMaterial({
-      color: 0x83eadd,
-      size: 0.045,
-      transparent: true,
-      opacity: 0.62,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      sizeAttenuation: true
-    });
-    const particleField = new THREE.Points(particleGeometry, particleMaterial);
-    scene.add(particleField);
-
-    // Long, subtle wake trails behind the twin hulls.
     const wakeGroup = new THREE.Group();
     boat.add(wakeGroup);
     for (const side of [-1, 1]) {
-      const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-2.9, -0.78, side * 0.82),
-        new THREE.Vector3(-4.2, -0.82, side * 1.02),
-        new THREE.Vector3(-6.3, -0.9, side * 1.35),
-        new THREE.Vector3(-8.8, -0.96, side * 1.8)
+      const wakeCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(side * 1.34, -0.3, -3.2),
+        new THREE.Vector3(side * 1.45, -0.54, -4.8),
+        new THREE.Vector3(side * 1.95, -0.68, -6.8),
+        new THREE.Vector3(side * 2.6, -0.73, -9.4)
       ]);
       const wake = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 48, 0.018, 5, false),
+        new THREE.TubeGeometry(wakeCurve, 60, 0.025, 6, false),
         new THREE.MeshBasicMaterial({
-          color: 0x71dcd0,
+          color: 0x89e9df,
           transparent: true,
-          opacity: 0.38,
+          opacity: 0.42,
           blending: THREE.AdditiveBlending
         })
       );
       wakeGroup.add(wake);
     }
 
-    const clock = new THREE.Clock();
-    let animationFrame = 0;
-    let currentProgress = 0;
+    const particleCount = window.innerWidth < 700 ? 360 : 760;
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleSeeds = new Float32Array(particleCount);
+    for (let i = 0; i < particleCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 7 + Math.random() * 44;
+      particlePositions[i * 3] = Math.cos(angle) * radius;
+      particlePositions[i * 3 + 1] = -0.4 + Math.random() * 15;
+      particlePositions[i * 3 + 2] = Math.sin(angle) * radius;
+      particleSeeds[i] = Math.random() * Math.PI * 2;
+    }
+    const particleGeometry = new THREE.BufferGeometry();
+    particleGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(particlePositions, 3)
+    );
+    const particleMaterial = new THREE.PointsMaterial({
+      color: 0x92e7df,
+      size: 0.055,
+      transparent: true,
+      opacity: 0.56,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    const cameraPath = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(10, 7, 14),
+      new THREE.Vector3(7.5, 4.7, 8.6),
+      new THREE.Vector3(-10, 5.2, 7.4),
+      new THREE.Vector3(-1.5, 10.5, -10),
+      new THREE.Vector3(10, 7.2, 14)
+    ]);
+
+    let frame = 0;
+    let time = 0;
     let pointerX = 0;
     let pointerY = 0;
     let targetPointerX = 0;
     let targetPointerY = 0;
+    let currentChapter = -1;
+    const clock = new THREE.Clock();
+
+    const updateProgress = () => {
+      const rect = sequence.getBoundingClientRect();
+      const distance = Math.max(1, rect.height - window.innerHeight);
+      const next = THREE.MathUtils.clamp(-rect.top / distance, 0, 1);
+      progressRef.current = next;
+      setProgress(next);
+      const chapter = Math.min(3, Math.floor(next * 4));
+      if (chapter !== currentChapter) {
+        currentChapter = chapter;
+        setActiveChapter(chapter);
+      }
+    };
+
     const onPointerMove = (event: PointerEvent) => {
       targetPointerX = (event.clientX / window.innerWidth - 0.5) * 2;
       targetPointerY = (event.clientY / window.innerHeight - 0.5) * 2;
     };
 
-    const onScroll = () => {
-      const max = Math.max(
-        1,
-        document.documentElement.scrollHeight - window.innerHeight
-      );
-
-      currentProgress = THREE.MathUtils.clamp(
-        window.scrollY / max,
-        0,
-        1
-      );
-
-      setProgress(currentProgress);
-    };
-
     const onResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      const width = mount.clientWidth || window.innerWidth;
+      const height = mount.clientHeight || window.innerHeight;
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
-
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", updateProgress, { passive: true });
     window.addEventListener("resize", onResize);
     window.addEventListener("pointermove", onPointerMove, { passive: true });
+    updateProgress();
+    onResize();
 
-    onScroll();
+    const animate = () => {
+      frame = requestAnimationFrame(animate);
+      time = clock.getElapsedTime();
+      const p = progressRef.current;
 
-    function animate() {
-      animationFrame = requestAnimationFrame(animate);
+      pointerX = THREE.MathUtils.lerp(pointerX, targetPointerX, 0.035);
+      pointerY = THREE.MathUtils.lerp(pointerY, targetPointerY, 0.035);
 
-      const time = clock.getElapsedTime();
-      const p = currentProgress;
-      pointerX = THREE.MathUtils.lerp(pointerX, targetPointerX, 0.025);
-      pointerY = THREE.MathUtils.lerp(pointerY, targetPointerY, 0.025);
+      const desiredCamera = cameraPath.getPointAt(p);
+      desiredCamera.x += pointerX * 0.68;
+      desiredCamera.y += -pointerY * 0.32;
+      camera.position.lerp(desiredCamera, 0.035);
 
-      const smooth = (v: number) => v * v * (3 - 2 * v);
-
-      const approach = smooth(
-        THREE.MathUtils.clamp((p - 0.12) / 0.18, 0, 1)
+      const lookTarget = new THREE.Vector3(
+        pointerX * 0.38,
+        0.1 - pointerY * 0.18,
+        -0.05
       );
+      camera.lookAt(lookTarget);
 
-      const orbit = smooth(
-        THREE.MathUtils.clamp((p - 0.28) / 0.22, 0, 1)
-      );
+      boat.position.y = 0.37 + Math.sin(time * 1.15) * 0.055;
+      boat.rotation.y = -0.16 + Math.sin(time * 0.22) * 0.035 + p * 0.72;
+      boat.rotation.z = Math.sin(time * 0.5) * 0.012;
+      boat.rotation.x = Math.sin(time * 0.68) * 0.009;
 
-      const detail = smooth(
-        THREE.MathUtils.clamp((p - 0.5) / 0.2, 0, 1)
-      );
+      sensorBand.rotation.z = time * 0.82;
+      sensorBeam.rotation.y = Math.sin(time * 0.24) * 0.18;
+      scanRings.rotation.y = time * 0.018;
+      scanRingMeshes.forEach((ring, i) => {
+        const pulse = (time * 0.12 + i * 0.25) % 1;
+        ring.scale.setScalar(0.76 + pulse * 0.34);
+        (ring.material as THREE.MeshBasicMaterial).opacity = (1 - pulse) * 0.2;
+      });
 
-      const pullback = smooth(
-        THREE.MathUtils.clamp((p - 0.78) / 0.2, 0, 1)
-      );
-
-      boat.position.y = Math.sin(time * 1.1) * 0.055;
-      boat.rotation.y = -0.22 + p * Math.PI * 1.15;
-      boat.rotation.z = Math.sin(time * 0.55) * 0.012;
-
-      boat.scale.setScalar(1 + approach * 0.12 - pullback * 0.12);
-
-      // Exploded component animation.
-      cabin.position.y = 0.78 + detail * 0.95;
-      roof.position.y = 1.32 + detail * 1.35;
-      mast.position.y = 1.65 + detail * 1.65;
-      sensor.position.y = 2.22 + detail * 1.9;
-      ring.position.y = 0.6 + detail * 0.42;
-
-      const angle = -0.18 + orbit * Math.PI * 0.85;
-
-      const radius =
-        THREE.MathUtils.lerp(18, 11.2, approach) +
-        detail * 1.5 -
-        pullback * 3.5;
-
-      const camX = Math.sin(angle) * radius;
-      const camZ = Math.cos(angle) * radius;
-
-      const camY =
-        THREE.MathUtils.lerp(7.4, 4.4, approach) +
-        Math.sin(p * Math.PI) * 1.4 -
-        detail * 0.3 +
-        pullback * 2.2;
-
-      camera.position.lerp(
-        new THREE.Vector3(camX + pointerX * 0.55, camY + pointerY * 0.28, camZ),
-        0.045
-      );
-
-      camera.lookAt(pointerX * 0.18, 0.25 + detail * 0.4 - pointerY * 0.12, 0);
-
-      // Animate the ocean.
-      for (let i = 0; i < positions.count; i++) {
-        const x = original[i * 3];
-        const z = original[i * 3 + 2];
-
-        positions.setY(
-          i,
-          Math.sin(x * 0.11 + time * 0.7) * 0.1 +
-          Math.cos(z * 0.14 + time * 0.55) * 0.075
-        );
-      }
-
-      positions.needsUpdate = true;
-      waterGeometry.computeVertexNormals();
-
-      points.rotation.y = time * 0.025;
-      particleField.rotation.y = time * 0.008;
       const particleArray = particleGeometry.attributes.position.array as Float32Array;
       for (let i = 0; i < particleCount; i++) {
-        particleArray[i * 3 + 1] = particlePositions[i * 3 + 1] +
-          Math.sin(time * 0.55 + particleSeeds[i]) * 0.22;
+        particleArray[i * 3 + 1] =
+          particlePositions[i * 3 + 1] +
+          Math.sin(time * 0.45 + particleSeeds[i]) * 0.19;
       }
       particleGeometry.attributes.position.needsUpdate = true;
-      radarRings.forEach((ringMesh, i) => {
-        const pulse = (time * 0.16 + i / 3) % 1;
-        ringMesh.scale.setScalar(0.78 + pulse * 0.42);
-        (ringMesh.material as THREE.MeshBasicMaterial).opacity = (1 - pulse) * 0.22;
-      });
-      sensorHalo.rotation.z = time * 0.7;
-      scanBeam.rotation.y = Math.sin(time * 0.2) * 0.12;
+      particles.rotation.y = time * 0.009;
+
+      waterMaterial.uniforms.uTime.value = time;
+      rimLight.intensity = 95 + Math.sin(time * 1.2) * 17;
       renderer.render(scene, camera);
-    }
+    };
 
     animate();
 
     return () => {
-      cancelAnimationFrame(animationFrame);
-
-      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", updateProgress);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointermove", onPointerMove);
 
-      particleGeometry.dispose();
-      particleMaterial.dispose();
-      radarRings.forEach((ringMesh) => {
-        ringMesh.geometry.dispose();
-        (ringMesh.material as THREE.Material).dispose();
+      scene.traverse((object) => {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
+          object.geometry.dispose();
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material];
+          materials.forEach((material) => material.dispose());
+        }
       });
       renderer.dispose();
-      waterGeometry.dispose();
-      waterMaterial.dispose();
-
       if (mount.contains(renderer.domElement)) {
         mount.removeChild(renderer.domElement);
       }
     };
   }, []);
 
-  const active = Math.min(4, Math.floor(progress * 5));
+  const chapter = chapters[activeChapter];
 
   return (
-    <>
-      <div className="three-mount" ref={mountRef} />
-      <div className="scene-vignette" />
+    <section className="sequence" id="top" ref={sequenceRef}>
+      <div className="sequence-sticky">
+        <div className="ocean-canvas" ref={mountRef} />
+        <div className="ocean-shade" />
+        <div className="ocean-grain" />
 
-      <div className="scene-topline">
-        <span className="brand">
-          <span className="brand-symbol"><Waves size={17}/></span>
-          AQUAVANT<span className="lime">.</span>
-        </span>
-
-        <span className="top-tag">AUTONOMOUS MARINE SYSTEMS</span>
-        <span className="top-index">FIELD NOTES / 2026</span>
-      </div>
-
-      <div className="scene-hud">
-        <span>SCROLL TO EXPLORE</span>
-        <div className="hud-track">
-          <i style={{ transform: `scaleX(${progress})` }} />
-        </div>
-        <span>{String(Math.round(progress * 100)).padStart(2, "0")}%</span>
-      </div>
-
-      <div className="chapter-copy" key={active}>
-        <div className="chapter-kicker">
-          <span>{chapters[active].number}</span>
-          <i />
-          {chapters[active].label}
+        <div className="sequence-topline">
+          <span>FIELD STUDY / 001</span>
+          <span>17° 23' N&nbsp;&nbsp; 78° 29' E</span>
         </div>
 
-        <h1>
-          {chapters[active].title.split("\n").map((line, i) => (
-            <span key={i}>
-              {line}
-              {i === 0 && <br />}
-            </span>
-          ))}
-        </h1>
+        <div className="hero-copy" key={activeChapter}>
+          <div className="hero-eyebrow"><i /> {chapter.eyebrow}</div>
+          <h1>{chapter.title.split("\n").map((line, index) => (
+            <span key={line + index}>{line}{index === 0 && <br />}</span>
+          ))}</h1>
+          <p>{chapter.description}</p>
+          {activeChapter === 0 && (
+            <a className="hero-link" href="#platform">
+              EXPLORE AQUAVANT <MoveUpRight size={15} />
+            </a>
+          )}
+        </div>
 
-        <p>{chapters[active].body}</p>
+        <div className="hero-spec">
+          <span className="spec-label">AUTONOMOUS MARINE SYSTEMS</span>
+          <span className="spec-divider" />
+          <span>DESIGNED FOR THE UNKNOWN</span>
+        </div>
 
-        {active === 0 && (
-          <a className="scroll-cta" href="#story">
-            Discover the platform <ArrowDown size={15}/>
-          </a>
-        )}
+        <div className="sequence-bottom">
+          <div className="scroll-indicator">
+            <span>SCROLL TO NAVIGATE</span>
+            <div className="scroll-track"><i style={{ transform: "scaleX(" + progress + ")" }} /></div>
+            <span>{String(Math.round(progress * 100)).padStart(2, "0")}</span>
+          </div>
+          <div className="sequence-chapters">
+            {chapters.map((item, index) => (
+              <span key={item.eyebrow} className={index === activeChapter ? "current" : ""}>
+                {item.eyebrow.slice(0, 2)}
+              </span>
+            ))}
+          </div>
+          <a href="#platform" className="scroll-down" aria-label="Scroll to platform"><ArrowDown size={17} /></a>
+        </div>
+
+        <div className="hero-orb-label"><span /> LIVE SYSTEM / NOMINAL</div>
       </div>
-
-      <div className="chapter-nav">
-        {chapters.map((chapter, i) => (
-          <a
-            key={chapter.number}
-            className={active === i ? "active" : ""}
-            href={`#story`}
-            aria-label={chapter.label}
-          >
-            <span>{chapter.number}</span>
-          </a>
-        ))}
-      </div>
-    </>
+    </section>
   );
 }
 
 export default function Home() {
-  const [menu, setMenu] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [missionIndex, setMissionIndex] = useState(0);
+  const mission = missions[missionIndex];
+
+  useEffect(() => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.14 }
+    );
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
-    <main>
-      <nav className="nav">
-        <a href="#top" className="nav-brand" aria-label="AQUAVANT home">
-          <span className="brand-symbol"><Waves size={17}/></span>
-          AQUAVANT<span className="lime">.</span>
+    <main className="site-shell">
+      <nav className="site-nav">
+        <a href="#top" className="wordmark" onClick={closeMenu}>
+          <span className="wordmark-icon"><Waves size={17} strokeWidth={1.7} /></span>
+          <span>AQUAVANT<span className="wordmark-dot">.</span></span>
         </a>
-        <div className="nav-right">
+        <div className="nav-links">
           <a href="#platform">PLATFORM</a>
-          <a href="#capabilities">CAPABILITIES</a>
-          <a href="#manifesto">OUR THINKING</a>
-          <a className="nav-contact" href="#contact">LET'S TALK <ArrowUpRight size={13}/></a>
+          <a href="#missions">MISSIONS</a>
+          <a href="#systems">SYSTEMS</a>
         </div>
-        <button className="mobile-menu" onClick={() => setMenu(!menu)} aria-label="Toggle menu">
-          {menu ? <X/> : <Menu/>}
+        <a className="nav-cta" href="#contact">START A CONVERSATION <ArrowUpRight size={14} /></a>
+        <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">
+          {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
-        {menu && <div className="mobile-panel">
-          <a onClick={() => setMenu(false)} href="#platform">Platform</a>
-          <a onClick={() => setMenu(false)} href="#capabilities">Capabilities</a>
-          <a onClick={() => setMenu(false)} href="#manifesto">Our thinking</a>
-          <a onClick={() => setMenu(false)} href="#contact">Contact</a>
-        </div>}
+        {menuOpen && (
+          <div className="mobile-navigation">
+            <a href="#platform" onClick={closeMenu}>PLATFORM <ArrowUpRight size={14} /></a>
+            <a href="#missions" onClick={closeMenu}>MISSIONS <ArrowUpRight size={14} /></a>
+            <a href="#systems" onClick={closeMenu}>SYSTEMS <ArrowUpRight size={14} /></a>
+            <a href="#contact" onClick={closeMenu}>CONTACT <ArrowUpRight size={14} /></a>
+          </div>
+        )}
       </nav>
 
-      <section className="experience" id="top">
-        <ThreeExperience/>
-        <div className="hero-bottomline">
-          <span>ENGINEERED FOR THE UNEXPECTED</span>
-          <span className="hero-coordinate">17° 23' N&nbsp;&nbsp; 78° 29' E</span>
-        </div>
-        <div className="hero-side-note">AUTONOMY / INTELLIGENCE / RESPONSE</div>
-      </section>
+      <OceanStage />
 
-      <section className="intro-band" id="platform">
-        <div className="section-meta"><span>01 — THE PLATFORM</span><span>BUILT FOR WHAT'S NEXT</span></div>
-        <div className="intro-grid">
-          <h2>THE WATER<br/>DOESN'T <em>WAIT.</em></h2>
-          <div className="intro-text">
-            <p className="intro-lead">A new perspective on marine response.</p>
-            <p>AQUAVANT is a next-generation autonomous marine platform concept. A study in purposeful design, intelligent systems and the possibilities of a more responsive relationship with our waterways.</p>
-            <a className="text-link" href="#capabilities">EXPLORE THE SYSTEM <ArrowUpRight size={15}/></a>
+      <section className="platform-section" id="platform">
+        <div className="section-stamp reveal"><span>01 / THE PLATFORM</span><span>AQUAVANT — 2026</span></div>
+        <div className="platform-headline reveal">
+          <p className="micro-label">A DIFFERENT POINT OF VIEW</p>
+          <h2>THE WATER<br />IS <em>ALWAYS</em><br />IN MOTION.</h2>
+          <div className="platform-aside">
+            <span className="aside-rule" />
+            <p>AQUAVANT explores what happens when intelligent systems meet the open water. A marine platform concept built around perception, adaptability and purposeful response.</p>
+            <a href="#systems" className="underlined-link">DISCOVER THE SYSTEM <ArrowUpRight size={15} /></a>
           </div>
         </div>
-        <div className="intro-index">A / 001</div>
+        <div className="platform-bottom reveal">
+          <span>01 — 04 / A NEW MARINE PERSPECTIVE</span>
+          <span>INTELLIGENCE IN MOTION <ArrowUpRight size={13} /></span>
+        </div>
       </section>
 
-      <section className="visual-break">
-        <div className="visual-break-image" />
-        <div className="visual-break-overlay" />
-        <div className="visual-break-copy">
-          <span>BEYOND THE SHORELINE / 02</span>
-          <h2>See further.<br/><em>Respond faster.</em></h2>
-          <p>Designed around awareness, adaptability and the people who depend on the water.</p>
+      <section className="mission-section" id="missions">
+        <div className="mission-head reveal">
+          <div>
+            <p className="micro-label">02 / BUILT AROUND THE MISSION</p>
+            <h2>ONE PLATFORM.<br /><em>MANY POSSIBILITIES.</em></h2>
+          </div>
+          <p className="mission-intro">A modular architecture gives the platform room to adapt. Explore three possible directions for a more aware future on the water.</p>
         </div>
-        <div className="visual-break-mark">AV—02</div>
+
+        <div className="mission-explorer">
+          <div className="mission-visual">
+            <div className="mission-grid" />
+            <div className="mission-radar">
+              <div className="radar-circle radar-circle-one" />
+              <div className="radar-circle radar-circle-two" />
+              <div className="radar-circle radar-circle-three" />
+              <div className="radar-sweep" />
+              <div className="radar-crosshair" />
+              <div className="radar-dot dot-one" />
+              <div className="radar-dot dot-two" />
+              <div className="radar-dot dot-three" />
+              <div className="radar-center"><Crosshair size={24} strokeWidth={1.2} /></div>
+            </div>
+            <div className="visual-coordinate coordinate-top">LAT 17°23' N / LONG 78°29' E</div>
+            <div className="visual-coordinate coordinate-bottom">SENSOR ARRAY / ACTIVE</div>
+            <div className="visual-index">{mission.number}<span> / 03</span></div>
+          </div>
+
+          <div className="mission-content">
+            <div className="mission-tabs" role="tablist" aria-label="Explore mission concepts">
+              {missions.map((item, index) => (
+                <button
+                  key={item.id}
+                  className={index === missionIndex ? "mission-tab selected" : "mission-tab"}
+                  onClick={() => setMissionIndex(index)}
+                  role="tab"
+                  aria-selected={index === missionIndex}
+                >
+                  <span>{item.number}</span>{item.label}<ArrowUpRight size={14} />
+                </button>
+              ))}
+            </div>
+            <div className="mission-detail" key={mission.id}>
+              <p className="micro-label">{mission.stat}</p>
+              <h3>{mission.title.split("\n").map((line, index) => (
+                <span key={line + index}>{line}{index === 0 && <br />}</span>
+              ))}</h3>
+              <p className="mission-description">{mission.body}</p>
+              <div className="mission-foot">
+                <span>{mission.detail}</span>
+                <span>CONCEPT / {mission.number}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="capabilities" id="capabilities">
-        <div className="section-meta dark-meta"><span>02 — SYSTEM CAPABILITIES</span><span>ONE PLATFORM / MULTIPLE MISSIONS</span></div>
-        <div className="capabilities-heading">
-          <h2>INTELLIGENCE<br/>IN <em>MOTION.</em></h2>
-          <p>Every element has a role. Every system works toward a clearer picture of the environment.</p>
+      <section className="systems-section" id="systems">
+        <div className="systems-top reveal">
+          <p className="micro-label">03 / THE SYSTEMS BEHIND THE SURFACE</p>
+          <span>THREE PILLARS / ONE INTELLIGENT PLATFORM</span>
         </div>
-        <div className="capability-list">
-          <article className="capability">
-            <span className="cap-number">01</span>
-            <div><span className="cap-label">PROPULSION</span><h3>Control in every direction.</h3><p>A twin-hull concept designed around stability, manoeuvrability and responsive movement.</p></div>
-            <span className="cap-arrow"><ArrowUpRight size={20}/></span>
+        <div className="systems-heading reveal">
+          <h2>ENGINEERED<br />TO <em>UNDERSTAND.</em></h2>
+          <p>More than a vessel. A connected system where every component contributes to a clearer understanding of the environment.</p>
+        </div>
+        <div className="system-cards">
+          <article className="system-card reveal">
+            <div className="system-card-top"><span>01 / PERCEPTION</span><Aperture size={19} /></div>
+            <div className="system-art perception-art">
+              <div className="perception-orbit orbit-a" /><div className="perception-orbit orbit-b" />
+              <div className="perception-core"><Crosshair size={26} /></div>
+              <i className="perception-beam" />
+            </div>
+            <h3>Awareness at the edge.</h3>
+            <p>Sensor-led perception imagined to bring navigation, surroundings and operational data into one picture.</p>
+            <span className="card-index">SENSE / INTERPRET / INFORM</span>
           </article>
-          <article className="capability">
-            <span className="cap-number">02</span>
-            <div><span className="cap-label">PERCEPTION</span><h3>Awareness at the edge.</h3><p>A modular sensor architecture imagined to bring navigation and situational data together.</p></div>
-            <span className="cap-arrow"><ArrowUpRight size={20}/></span>
+          <article className="system-card reveal">
+            <div className="system-card-top"><span>02 / ADAPTABILITY</span><Compass size={19} /></div>
+            <div className="system-art adapt-art">
+              <div className="adapt-frame"><i /><i /><i /><i /></div>
+              <div className="adapt-core"><Waves size={30} /></div>
+              <div className="adapt-orbit" />
+            </div>
+            <h3>Designed to evolve.</h3>
+            <p>A modular deck and flexible architecture create room for new payloads, tools and mission requirements.</p>
+            <span className="card-index">CONFIGURE / CONNECT / DEPLOY</span>
           </article>
-          <article className="capability">
-            <span className="cap-number">03</span>
-            <div><span className="cap-label">MODULARITY</span><h3>Ready for the mission.</h3><p>A flexible deck concept leaves room for payloads, equipment and evolving operational needs.</p></div>
-            <span className="cap-arrow"><ArrowUpRight size={20}/></span>
+          <article className="system-card reveal">
+            <div className="system-card-top"><span>03 / AUTONOMY</span><Radio size={19} /></div>
+            <div className="system-art autonomy-art">
+              <div className="signal signal-a" /><div className="signal signal-b" /><div className="signal signal-c" />
+              <div className="autonomy-core"><Radio size={25} /></div>
+              <div className="signal-point point-a" /><div className="signal-point point-b" />
+            </div>
+            <h3>Decisions with context.</h3>
+            <p>Connected intelligence provides a foundation for more informed movement and responsive operations.</p>
+            <span className="card-index">CONNECT / ANALYSE / RESPOND</span>
           </article>
         </div>
       </section>
 
-      <section className="manifesto" id="manifesto">
-        <div className="manifesto-top"><span>03 — OUR THINKING</span><span>DESIGN WITH INTENT</span></div>
-        <p>THE FUTURE OF THE WATER ISN'T JUST ABOUT GOING FURTHER.</p>
-        <h2>IT'S ABOUT<br/><em>KNOWING WHY.</em></h2>
-        <div className="manifesto-bottom"><span>CONSIDERED DESIGN. CONNECTED SYSTEMS. HUMAN PURPOSE.</span><span>— AQUAVANT</span></div>
+      <section className="manifesto-section">
+        <div className="manifesto-background-mark">A</div>
+        <div className="manifesto-inner">
+          <p className="micro-label reveal">04 / OUR POINT OF VIEW</p>
+          <h2 className="reveal">THE NEXT<br />WAVE ISN'T<br /><em>ABOUT SPEED.</em></h2>
+          <div className="manifesto-bottom reveal">
+            <p>IT'S ABOUT SEEING MORE.<br />UNDERSTANDING BETTER.<br />AND KNOWING WHEN TO ACT.</p>
+            <span>— AQUAVANT / INTELLIGENCE IN MOTION</span>
+          </div>
+        </div>
       </section>
 
-      <footer id="contact">
-        <div className="footer-top">
-          <span className="eyebrow">04 — THE NEXT HORIZON</span>
-          <span className="footer-coordinate">AQUAVANT / EST. 2026</span>
+      <footer className="site-footer" id="contact">
+        <div className="footer-top reveal">
+          <span>05 / THE NEXT HORIZON</span>
+          <span>AN AUTONOMOUS MARINE SYSTEMS CONCEPT</span>
         </div>
-        <h2>MAKE WAVES.<br/><em>MAKE A DIFFERENCE.</em></h2>
-        <div className="footer-action-row">
-          <p>A concept for a more intelligent, responsive future on the water.</p>
-          <a className="footer-contact" href="mailto:hello@aquavant.example">START A CONVERSATION <ArrowUpRight size={17}/></a>
+        <div className="footer-main reveal">
+          <p className="micro-label">THE WATER IS WAITING.</p>
+          <h2>LET'S MAKE<br /><em>WHAT'S NEXT.</em></h2>
+          <a href="mailto:hello@aquavant.example" className="footer-cta">START A CONVERSATION <ArrowUpRight size={18} /></a>
         </div>
         <div className="footer-bottom">
-          <a href="#top" className="footer-brand">AQUAVANT<span>.</span></a>
+          <a href="#top" className="footer-wordmark">AQUAVANT<span>.</span></a>
           <span>© 2026 AQUAVANT — CONCEPT EXPERIENCE</span>
-          <a href="#top">BACK TO TOP ↑</a>
+          <a href="#top">BACK TO SURFACE ↑</a>
         </div>
       </footer>
     </main>
