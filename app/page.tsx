@@ -56,55 +56,33 @@ function AnatomyStage() {
     floor.rotation.x=-Math.PI/2; floor.position.y=-3.45; scene.add(floor);
     const grid=new THREE.GridHelper(38,48,0x413b70,0x25243e); grid.position.y=-3.42; (grid.material as THREE.Material).transparent=true; (grid.material as THREE.Material).opacity=.28; scene.add(grid);
 
+    // Use the detailed muscular-system asset as the hero anatomy model.
     const human=new THREE.Group(); human.position.set(1.65,0,0); scene.add(human);
-    const shell=new THREE.MeshPhysicalMaterial({color:0x9b9bdc,metalness:.35,roughness:.28,transparent:true,opacity:.18,clearcoat:1,side:THREE.DoubleSide,depthWrite:false});
-    const bone=new THREE.MeshStandardMaterial({color:0xd9d8ed,metalness:.32,roughness:.38,emissive:0x252342,emissiveIntensity:.25});
-    const nerve=new THREE.MeshBasicMaterial({color:0xa78bfa});
-    const vessel=new THREE.MeshBasicMaterial({color:0xff557d});
-    const cyanMat=new THREE.MeshBasicMaterial({color:0x62e9e6});
-    const brainMat=new THREE.MeshPhysicalMaterial({color:0xb59cff,metalness:.3,roughness:.2,emissive:0x4424a5,emissiveIntensity:.5});
-    const heartMat=new THREE.MeshPhysicalMaterial({color:0xff466f,metalness:.18,roughness:.24,emissive:0x7a102f,emissiveIntensity:.5});
-    // Translucent anatomical silhouette
-    sphere(human,[0,0.05,0],[1.05,1.62,.48],shell,40);
-    sphere(human,[0,1.92,0],[.52,.68,.48],shell,32);
-    sphere(human,[-.0,2.68,0],[.48,.52,.43],shell,32);
-    // Brain lobes
-    for(let i=0;i<7;i++){const a=i/7*Math.PI*2; sphere(human,[Math.cos(a)*.22,2.75+Math.sin(a)*.13,Math.sin(a)*.18],[.23,.2,.2],brainMat,18);}
-    // Neck, spine and vertebrae
-    human.add(limb(new THREE.Vector3(0,1.45,0),new THREE.Vector3(0,2.25,0),.17,bone));
-    for(let i=0;i<19;i++) sphere(human,[0,1.38-i*.225,.02],[.14,.105,.14],bone,12);
-    // Rib cage: paired curved arcs
-    for(let i=0;i<7;i++){
-      const y=1.22-i*.19, w=.62-i*.035, points=[];
-      for(let j=0;j<=24;j++){const t=j/24*Math.PI; points.push(new THREE.Vector3(Math.cos(t)*w,y-Math.sin(t)*.25,.24+Math.sin(t)*.1));}
-      const curve=new THREE.CatmullRomCurve3(points);
-      human.add(new THREE.Mesh(new THREE.TubeGeometry(curve,32,.026,7,false),bone));
-    }
-    // Pelvis and limbs
-    const pelvis=new THREE.Mesh(new THREE.TorusGeometry(.52,.12,12,48,Math.PI),bone); pelvis.position.set(0,-1.15,0); pelvis.rotation.z=Math.PI; human.add(pelvis);
-    for(const side of [-1,1]){
-      const shoulder=new THREE.Vector3(side*.94,1.48,0), elbow=new THREE.Vector3(side*1.3,.45,.02), wrist=new THREE.Vector3(side*1.42,-.45,.06), hip=new THREE.Vector3(side*.4,-1.2,0), knee=new THREE.Vector3(side*.48,-2.15,.02), ankle=new THREE.Vector3(side*.5,-3.05,0);
-      sphere(human,[shoulder.x,shoulder.y,shoulder.z],[.22,.24,.23],bone);
-      human.add(limb(shoulder,elbow,.13,bone)); sphere(human,[elbow.x,elbow.y,elbow.z],[.13,.14,.13],bone);
-      human.add(limb(elbow,wrist,.095,bone)); sphere(human,[wrist.x,wrist.y,wrist.z],[.11,.2,.1],bone);
-      human.add(limb(hip,knee,.19,bone)); sphere(human,[knee.x,knee.y,knee.z],[.16,.17,.16],bone);
-      human.add(limb(knee,ankle,.12,bone)); sphere(human,[ankle.x,ankle.y,ankle.z],[.15,.13,.26],bone);
-      // Peripheral nerve and arterial paths
-      const nerveCurve=new THREE.CatmullRomCurve3([shoulder,new THREE.Vector3(side*1.1,1.0,.2),elbow,wrist]);
-      human.add(new THREE.Mesh(new THREE.TubeGeometry(nerveCurve,36,.018,6,false),nerve));
-      const legCurve=new THREE.CatmullRomCurve3([hip,new THREE.Vector3(side*.45,-1.7,.15),knee,ankle]);
-      human.add(new THREE.Mesh(new THREE.TubeGeometry(legCurve,36,.018,6,false),cyanMat));
-    }
-    // Heart, lungs and great vessels
-    sphere(human,[.18,.35,.34],[.25,.38,.2],heartMat,28);
-    sphere(human,[-.36,.42,.24],[.28,.52,.15],new THREE.MeshPhysicalMaterial({color:0x8c70db,transparent:true,opacity:.48,roughness:.25}),24);
-    sphere(human,[.48,.42,.24],[.28,.52,.15],new THREE.MeshPhysicalMaterial({color:0x8c70db,transparent:true,opacity:.48,roughness:.25}),24);
-    const aorta=new THREE.CatmullRomCurve3([new THREE.Vector3(.2,.55,.43),new THREE.Vector3(.35,.9,.38),new THREE.Vector3(.12,1.08,.3),new THREE.Vector3(-.25,.9,.28)]);
-    human.add(new THREE.Mesh(new THREE.TubeGeometry(aorta,40,.055,10,false),vessel));
-    // Neural trunk
-    const spineNerve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,2.4,.23),new THREE.Vector3(0,1.8,.22),new THREE.Vector3(0,.8,.25),new THREE.Vector3(0,-.5,.2),new THREE.Vector3(0,-1.4,.12)]);
-    human.add(new THREE.Mesh(new THREE.TubeGeometry(spineNerve,70,.035,8,false),nerve));
-
+    const heroLoader = new GLTFLoader();
+    heroLoader.load("/models/full-body-muscular-system-selected-deep-layer.glb", (gltf) => {
+      const model = gltf.scene;
+      const bounds = new THREE.Box3().setFromObject(model);
+      const dimensions = bounds.getSize(new THREE.Vector3());
+      const center = bounds.getCenter(new THREE.Vector3());
+      const fitScale = 5.5 / Math.max(dimensions.y, 0.001);
+      model.scale.setScalar(fitScale);
+      model.position.set(-center.x * fitScale, -center.y * fitScale, -center.z * fitScale);
+      model.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.castShadow = true;
+          object.receiveShadow = true;
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach((material) => {
+            if (material instanceof THREE.MeshStandardMaterial) {
+              material.roughness = Math.min(material.roughness, 0.44);
+              material.metalness = Math.max(material.metalness, 0.06);
+              material.needsUpdate = true;
+            }
+          });
+        }
+      });
+      human.add(model);
+    }, undefined, (error) => console.warn("Hero anatomy model could not be loaded:", error));
     // Holographic orbital rings and scanning planes
     const haloGroup=new THREE.Group(); scene.add(haloGroup);
     for(let i=0;i<4;i++){const ring=new THREE.Mesh(new THREE.TorusGeometry(2.65+i*.42,.008,6,180),new THREE.MeshBasicMaterial({color:i%2?0x6c5bff:0x4fe6e4,transparent:true,opacity:.22-i*.03})); ring.rotation.x=Math.PI/2+(i*.17); ring.position.set(1.65,-.15-i*.3,0); haloGroup.add(ring);}
