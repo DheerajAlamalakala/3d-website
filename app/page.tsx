@@ -1,83 +1,105 @@
 "use client";
-import {useEffect,useRef,useState} from "react";
-import * as THREE from "three";
-import {ArrowDown,ArrowDownRight,ArrowUpRight,Menu,X,Volume2,VolumeX} from "lucide-react";
-import {RoomEnvironment} from "three/examples/jsm/environments/RoomEnvironment.js";
-import {EffectComposer} from "three/examples/jsm/postprocessing/EffectComposer.js";
-import {RenderPass} from "three/examples/jsm/postprocessing/RenderPass.js";
-import {UnrealBloomPass} from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import {OutputPass} from "three/examples/jsm/postprocessing/OutputPass.js";
-const chapters=["HOME","WORK","EXPERIMENTS","STUDIO","CONTACT"];
-const projects=[{id:"01",kind:"INTERACTIVE WORLDS",title:"AFTER THE ORDINARY",description:"A living digital environment shaped by light, movement and curiosity.",tone:"lilac"},{id:"02",kind:"GENERATIVE SYSTEMS",title:"MATTER IN MOTION",description:"An exploration of emergent forms, fluid forces and beautiful unpredictability.",tone:"cyan"},{id:"03",kind:"DIGITAL EXPERIENCES",title:"A DIFFERENT REALITY",description:"Interfaces that feel less like software and more like somewhere you can go.",tone:"ember"}];
-function WorldCanvas(){
- const host=useRef<HTMLDivElement>(null),[sound,setSound]=useState(false),audio=useRef<AudioContext|null>(null),gain=useRef<GainNode|null>(null);
- useEffect(()=>{
-  const el=host.current;if(!el)return;let renderer:THREE.WebGLRenderer;
-  try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:"high-performance"});}catch{el.classList.add("webgl-fallback");return;}
-  el.classList.add("webgl-ready");renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;renderer.setClearColor(0x030407,1);el.appendChild(renderer.domElement);
-  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,100);camera.position.z=8.6;
-  const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment(),env=pmrem.fromScene(room,.04);scene.environment=env.texture;
-  const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),1.12,.72,.1);composer.addPass(bloom);composer.addPass(new OutputPass());
-  // GPU fluid simulation: each frame advects the previous texture and injects cursor energy into the next target.
-  const simSize=innerWidth<700?256:512,makeTarget=()=>new THREE.WebGLRenderTarget(simSize,simSize,{type:THREE.HalfFloatType,format:THREE.RGBAFormat,minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:false,stencilBuffer:false});
-  let read=makeTarget(),write=makeTarget();const simScene=new THREE.Scene(),simCamera=new THREE.OrthographicCamera(-1,1,1,-1,0,1);simCamera.position.z=1;
-  const simMat=new THREE.ShaderMaterial({uniforms:{uPrev:{value:read.texture},uPointer:{value:new THREE.Vector2(.5,.5)},uForce:{value:0},uTime:{value:0},uAspect:{value:innerWidth/innerHeight}},vertexShader:"varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position,1.0);}",fragmentShader:"precision highp float;varying vec2 vUv;uniform sampler2D uPrev;uniform vec2 uPointer;uniform float uForce;uniform float uTime;uniform float uAspect;void main(){vec2 p=vUv-uPointer;p.x*=uAspect;float d=length(p);vec2 flow=vec2(cos(vUv.y*13.0+uTime*.5),sin(vUv.x*12.0-uTime*.4))*.0018+vec2(-p.y,p.x)*.0012;vec3 old=texture2D(uPrev,clamp(vUv-flow,vec2(.002),vec2(.998))).rgb*.987;float splash=exp(-d*d*680.0)*uForce;float wave=exp(-abs(d-.05)*95.0)*uForce*.22;vec3 ink=vec3(.55+.3*sin(uTime*.4),.34+.25*sin(uTime*.31+2.0),.95);gl_FragColor=vec4(min(old+ink*splash+vec3(.1,.7,.9)*wave,vec3(1.5)),1.0);}",depthTest:false,depthWrite:false});
-  simScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),simMat));
-  const fluidMat=new THREE.ShaderMaterial({uniforms:{uFluid:{value:read.texture}},vertexShader:"varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}",fragmentShader:"varying vec2 vUv;uniform sampler2D uFluid;void main(){vec3 c=texture2D(uFluid,vUv).rgb;float l=dot(c,vec3(.32,.4,.28));gl_FragColor=vec4(c*1.8+vec3(.1,.25,.6)*l,clamp(l*1.6,0.0,.8));}",transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
-  const fluid=new THREE.Mesh(new THREE.PlaneGeometry(19,11),fluidMat);fluid.position.z=-5;scene.add(fluid);
-  const world=new THREE.Group();scene.add(world);let shader:any=null;
-  const material=new THREE.MeshPhysicalMaterial({color:0x9b86e8,metalness:.74,roughness:.06,clearcoat:1,clearcoatRoughness:.025,iridescence:1,iridescenceIOR:1.45,iridescenceThicknessRange:[180,1000],envMapIntensity:2.8,emissive:0x180b38,emissiveIntensity:.34});
-  material.onBeforeCompile=s=>{s.uniforms.uFlowTime={value:0};s.uniforms.uFlowPointer={value:new THREE.Vector2()};s.uniforms.uChapter={value:0};s.vertexShader=s.vertexShader.replace("#include <common>","#include <common>\nuniform float uFlowTime;uniform vec2 uFlowPointer;uniform float uChapter;");const deform="\nfloat a=sin(position.y*3.0+uFlowTime*.7+uFlowPointer.x*2.0);float b=cos(position.x*4.0-uFlowTime*.48+uFlowPointer.y*2.0);float c=sin(position.z*5.0+uFlowTime*.3+position.x*2.0);transformed+=normal*(a*.1+b*.065+c*.045+sin(length(position.xy)*9.0-uFlowTime)*.02+uChapter*.025);\n";s.vertexShader=s.vertexShader.replace("#include <begin_vertex>","#include <begin_vertex>"+deform);shader=s;};
-  // Hero artifact: a folded, interwoven chrome sculpture rather than a primitive floating sphere.
-  const chrome=new THREE.MeshPhysicalMaterial({color:0xd9d7e4,metalness:1,roughness:.105,clearcoat:1,clearcoatRoughness:.035,iridescence:1,iridescenceIOR:1.42,iridescenceThicknessRange:[240,920],envMapIntensity:3.4});
-  const darkChrome=new THREE.MeshPhysicalMaterial({color:0x303644,metalness:.98,roughness:.16,clearcoat:1,clearcoatRoughness:.04,envMapIntensity:3});
-  const cyan=new THREE.MeshPhysicalMaterial({color:0x8de7ee,metalness:.92,roughness:.09,clearcoat:1,iridescence:.85,envMapIntensity:3,emissive:0x063e4a,emissiveIntensity:.22});
-  const artifact=new THREE.Group();world.add(artifact);
-  const knot=new THREE.Mesh(new THREE.TorusKnotGeometry(1.02,.245,420,40,2,5),chrome);knot.rotation.set(.35,.2,-.22);artifact.add(knot);
-  const innerKnot=new THREE.Mesh(new THREE.TorusKnotGeometry(.58,.105,320,24,3,7),darkChrome);innerKnot.rotation.set(1.05,.25,.6);artifact.add(innerKnot);
-  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.43,4),new THREE.MeshPhysicalMaterial({color:0x8ce8f1,metalness:.88,roughness:.12,clearcoat:1,iridescence:1,envMapIntensity:3.2,emissive:0x073b48,emissiveIntensity:.3}));artifact.add(core);
-  const rings=[new THREE.Mesh(new THREE.TorusGeometry(1.72,.022,16,320),chrome),new THREE.Mesh(new THREE.TorusGeometry(1.92,.012,12,320),cyan),new THREE.Mesh(new THREE.TorusGeometry(1.48,.012,12,280),darkChrome)];
-  rings[0].rotation.set(1.1,.3,.4);rings[1].rotation.set(.2,1.2,.8);rings[2].rotation.set(1.3,.8,1.7);rings.forEach(x=>artifact.add(x));
-  const makeRibbon=(phase:number,mat:THREE.Material)=>{const pts:THREE.Vector3[]=[];for(let i=0;i<480;i++){const t=i/479*Math.PI*2,r=1.48+.42*Math.sin(t*3+phase);pts.push(new THREE.Vector3(Math.cos(t*1.15+phase)*r,Math.sin(t*2+phase)*.9,Math.sin(t*1.15+phase)*r));}return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),640,.022,10,false),mat);};
-  const ribbons=[makeRibbon(.2,cyan),makeRibbon(2.1,chrome),makeRibbon(4.2,darkChrome)];ribbons.forEach(x=>artifact.add(x));
-  const artifactHalo=new THREE.Mesh(new THREE.TorusGeometry(2.35,.006,8,360),cyan);artifactHalo.rotation.set(.7,.4,1.1);artifact.add(artifactHalo);
-  const lights=[new THREE.PointLight(0xb39aff,160,14),new THREE.PointLight(0x66e2e6,140,13),new THREE.PointLight(0xffa1d2,110,12),new THREE.PointLight(0xffffff,70,9)];lights[0].position.set(3,2.5,3);lights[1].position.set(-3,-2,2.5);lights[2].position.set(1,-3,-2);lights[3].position.set(-1,2,4);lights.forEach(l=>scene.add(l));scene.add(new THREE.AmbientLight(0x777baf,.5));
-  const count=innerWidth<700?1800:6000,pos=new Float32Array(count*3),seed=new Float32Array(count),size=new Float32Array(count);for(let i=0;i<count;i++){const r=2.4+Math.random()*5.8,a=Math.random()*Math.PI*2;pos[i*3]=Math.cos(a)*r;pos[i*3+1]=(Math.random()-.5)*8;pos[i*3+2]=Math.sin(a)*r-1.4;seed[i]=Math.random()*6.28;size[i]=.5+Math.random()*1.5;}
-  const pGeo=new THREE.BufferGeometry();pGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));pGeo.setAttribute("aSeed",new THREE.BufferAttribute(seed,1));pGeo.setAttribute("aSize",new THREE.BufferAttribute(size,1));
-  const pMat=new THREE.ShaderMaterial({uniforms:{uTime:{value:0},uPointer:{value:new THREE.Vector2()},uProgress:{value:0}},vertexShader:"attribute float aSeed;attribute float aSize;uniform float uTime;uniform vec2 uPointer;uniform float uProgress;varying float vA;void main(){vec3 p=position;float a=uTime*(.04+aSeed*.01)+aSeed;p.xz=mat2(cos(a),-sin(a),sin(a),cos(a))*p.xz;p.y+=sin(uTime*.25+aSeed*9.0)*.16;vec2 d=p.xy-uPointer*vec2(3.0,2.5);float f=exp(-dot(d,d)*.2);p.xy+=normalize(d+vec2(.0001))*f*.5;p+=normalize(p+vec3(.001))*sin(uProgress*6.283+aSeed)*.24;vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(aSize*(28.0/-mv.z),1.0,8.0);vA=(.22+f*.6)*clamp((14.0+mv.z)/14.0,0.0,1.0);}",fragmentShader:"varying float vA;void main(){float d=length(gl_PointCoord-.5);float a=(1.0-smoothstep(.03,.5,d))*vA;if(a<.01)discard;gl_FragColor=vec4(.68,.76,1.0,a);}",transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});scene.add(new THREE.Points(pGeo,pMat));
-  const trailN=64,trailPos=new Float32Array(trailN*3),trailGeo=new THREE.BufferGeometry();trailGeo.setAttribute("position",new THREE.BufferAttribute(trailPos,3));const trailMat=new THREE.LineBasicMaterial({color:0xb6a4ff,transparent:true,opacity:0,blending:THREE.AdditiveBlending}),trail=new THREE.Line(trailGeo,trailMat);trail.frustumCulled=false;scene.add(trail);const trailPts=Array.from({length:trailN},()=>new THREE.Vector3(0,0,-50));
-  const pointer=new THREE.Vector2(),target=new THREE.Vector2(.5,.5),screen=new THREE.Vector2(),lastPointer=new THREE.Vector2(.5,.5);let speed=0,scrollTarget=0,scrollCurrent=0,time=0;const clock=new THREE.Clock();
-  const onPointer=(e:PointerEvent)=>{target.set(e.clientX/innerWidth,1-e.clientY/innerHeight);screen.set((target.x-.5)*2,(target.y-.5)*2);};
-  const onScroll=()=>{scrollTarget=scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight);};
-  const resize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);bloom.setSize(innerWidth,innerHeight);simMat.uniforms.uAspect.value=innerWidth/innerHeight;renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));};
-  addEventListener("pointermove",onPointer,{passive:true});addEventListener("scroll",onScroll,{passive:true});addEventListener("resize",resize);onScroll();
-  renderer.setAnimationLoop(()=>{const dt=Math.min(.04,clock.getDelta()||.016);time+=dt;scrollCurrent+=(scrollTarget-scrollCurrent)*.075;const p=THREE.MathUtils.clamp(scrollCurrent,0,1),chapter=p*4;pointer.lerp(screen,.08);const velocity=target.clone().sub(lastPointer).length()/Math.max(.008,dt);speed=THREE.MathUtils.lerp(speed,Math.min(1,velocity*.012),.16);lastPointer.copy(target);
-   simMat.uniforms.uPrev.value=read.texture;simMat.uniforms.uPointer.value.copy(target);simMat.uniforms.uForce.value=Math.min(1,speed*.9);simMat.uniforms.uTime.value=time;renderer.setRenderTarget(write);renderer.render(simScene,simCamera);renderer.setRenderTarget(null);const swap=read;read=write;write=swap;fluidMat.uniforms.uFluid.value=read.texture;
-   if(shader){shader.uniforms.uFlowTime.value=time;shader.uniforms.uFlowPointer.value.copy(pointer);shader.uniforms.uChapter.value=chapter;}
-   world.rotation.y=time*.1+pointer.x*.12+p*4.5;world.rotation.x=Math.sin(time*.22)*.08+pointer.y*.12;world.rotation.z=pointer.x*-.06+Math.sin(chapter*Math.PI)*.18;const mobileView=innerWidth<700;world.scale.setScalar((mobileView?.58:1)*(1+Math.sin(time*.6)*.012+Math.sin(chapter*Math.PI)*.07));world.position.x=(mobileView?1.45:1.5)-Math.sin(p*Math.PI)*(mobileView?.55:1.7);world.position.y=Math.sin(chapter*Math.PI)*.22;
-   core.rotation.set(time*.18,-time*.22,time*.11);artifact.rotation.set(Math.sin(time*.16)*.08+pointer.y*.08,time*.12+pointer.x*.1,Math.sin(time*.11)*.05);rings[0].rotation.z=time*.08;rings[1].rotation.x=time*.1;rings[2].rotation.y=-time*.08;ribbons[0].rotation.y=time*.065;ribbons[1].rotation.x=-time*.055;ribbons[2].rotation.z=time*.04;
-   pMat.uniforms.uTime.value=time;pMat.uniforms.uPointer.value.copy(pointer);pMat.uniforms.uProgress.value=p;
-   trailPts[0].lerp(new THREE.Vector3(pointer.x*4.2,pointer.y*2.7,1.1),.42);for(let i=1;i<trailN;i++){const a=trailPts[i-1],b=trailPts[i],spring=.19-i*.0018;b.x+=(a.x-b.x)*spring;b.y+=(a.y-b.y)*spring;b.z+=(1.1-b.z)*.12;}for(let i=0;i<trailN;i++){trailPos[i*3]=trailPts[i].x;trailPos[i*3+1]=trailPts[i].y;trailPos[i*3+2]=speed>.015?trailPts[i].z:-50;}trailGeo.attributes.position.needsUpdate=true;trailMat.opacity=speed>.015?.72:0;
-   camera.position.x=THREE.MathUtils.lerp(camera.position.x,pointer.x*.25,.025);camera.position.y=THREE.MathUtils.lerp(camera.position.y,pointer.y*.18,.025);camera.position.z=8.6-Math.sin(p*Math.PI)*1.05;camera.lookAt(0,0,0);bloom.strength=1.05+speed*.22;composer.render();
-  });
-  return()=>{renderer.setAnimationLoop(null);removeEventListener("pointermove",onPointer);removeEventListener("scroll",onScroll);removeEventListener("resize",resize);scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Points||o instanceof THREE.Line){o.geometry.dispose();(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose());}});read.dispose();write.dispose();composer.dispose();env.dispose();pmrem.dispose();renderer.dispose();if(el.contains(renderer.domElement))el.removeChild(renderer.domElement);};
- },[]);
- const toggle=async()=>{if(!audio.current){const ctx=new AudioContext(),master=ctx.createGain(),osc=ctx.createOscillator(),filter=ctx.createBiquadFilter(),g=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);osc.type="sine";osc.frequency.value=48;g.gain.value=.06;filter.type="lowpass";filter.frequency.value=160;osc.connect(g);g.connect(filter);filter.connect(master);osc.start();audio.current=ctx;gain.current=master;}const ctx=audio.current,m=gain.current!;if(ctx.state==="suspended")await ctx.resume();const next=!sound;m.gain.cancelScheduledValues(ctx.currentTime);m.gain.setTargetAtTime(next?.11:0,ctx.currentTime,.35);setSound(next);};
- useEffect(()=>()=>{audio.current?.close().catch(()=>{});},[]);
- return <><div className="world-canvas" ref={host}/><button className="sound-control" onClick={toggle}>{sound?<Volume2 size={13}/>:<VolumeX size={13}/>} {sound?"SOUND ON":"SOUND OFF"}</button></>;
-}
-export default function Home(){
- const [active,setActive]=useState("HOME"),[menu,setMenu]=useState(false),[velocity,setVelocity]=useState(0);
- useEffect(()=>{let last=scrollY;const onScroll=()=>{const y=scrollY,d=y-last;last=y;setVelocity(v=>v*.55+d*.45);};addEventListener("scroll",onScroll,{passive:true});const observer=new IntersectionObserver(entries=>{const e=entries.filter(x=>x.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(e){setActive(e.target.id.toUpperCase());e.target.classList.add("chapter-visible");}},{rootMargin:"-40% 0px -45% 0px",threshold:[0,.15,.4,.7]});chapters.forEach(x=>{const el=document.getElementById(x.toLowerCase());if(el)observer.observe(el);});return()=>{removeEventListener("scroll",onScroll);observer.disconnect();};},[]);
- const go=(id:string)=>{document.getElementById(id.toLowerCase())?.scrollIntoView({behavior:"smooth",block:"start"});setMenu(false);};
- return <main className="immersive-site"><WorldCanvas/><div className="world-grain"/>
-  <header className="immersive-nav"><a className="brand-mark" href="#home" onClick={e=>{e.preventDefault();go("HOME");}}>FORM<span>·</span>FIELD</a><nav className="chapter-nav">{chapters.map((x,i)=><button key={x} className={active===x?"active":""} onClick={()=>go(x)} style={{transform:active===x?"translateY("+Math.max(-3,Math.min(3,velocity*.04))+"px)":"translateY(0)"}}><span>0{i+1}</span>{x}</button>)}</nav><button className="nav-lets-talk" onClick={()=>go("CONTACT")}>LET'S TALK <ArrowUpRight size={14}/></button><button className="mobile-menu" onClick={()=>setMenu(!menu)} aria-label="Toggle menu">{menu?<X/>:<Menu/>}</button>{menu&&<div className="mobile-menu-panel">{chapters.map(x=><button key={x} onClick={()=>go(x)}>{x} <ArrowUpRight size={14}/></button>)}</div>}</header>
-  <div className="scroll-progress"><span style={{transform:"scaleX("+((chapters.indexOf(active))/4)+")"}}/></div>
-  <section className="chapter hero-chapter" id="home"><div className="chapter-counter">INDEPENDENT DIGITAL STUDIO <span>HYDERABAD · EVERYWHERE</span></div><div className="hero-copy"><p className="micro-label"><i/> A PLAYGROUND FOR THE POSSIBLE</p><h1>MAKE<br/>WONDER<br/><em>HAPPEN.</em></h1><p className="hero-description">We turn code, design and imagination into digital worlds that move with you.</p><button className="text-cta" onClick={()=>go("WORK")}>ENTER THE WORLD <ArrowDownRight size={16}/></button></div><div className="hero-side-note">MOVE YOUR CURSOR<br/>SCROLL TO SHAPE THE WORLD</div><button className="scroll-cue" onClick={()=>go("WORK")}><span>SCROLL TO EXPLORE</span><ArrowDown size={15}/></button><div className="chapter-no">01 <span>— 05</span></div></section>
-  <section className="chapter work-chapter" id="work"><div className="section-kicker"><span>01 / SELECTED WORLDS</span><span>INTERACTION · EXPERIMENT · EXPERIENCE</span></div><div className="chapter-heading"><p className="micro-label"><i/> WORLDS BUILT TO BE FELT</p><h2>NOT JUST<br/><em>ANOTHER</em><br/>WEBSITE.</h2><p className="chapter-intro">A collection of imagined digital spaces. Each one a different experiment in what the web can become.</p></div><div className="world-list">{projects.map(p=><button className={"world-card "+p.tone} key={p.id} onClick={()=>go("EXPERIMENTS")}><span className="world-card-index">{p.id} / 03</span><span className="world-card-art"><i/><b/><em/></span><span className="world-card-copy"><small>{p.kind}</small><strong>{p.title}</strong><span>{p.description}</span></span><span className="world-card-arrow"><ArrowUpRight size={20}/></span></button>)}</div><div className="chapter-bottom"><span>THREE DIRECTIONS. INFINITE POSSIBILITIES.</span><button onClick={()=>go("EXPERIMENTS")}>SEE HOW WE EXPERIMENT <ArrowDownRight size={14}/></button></div></section>
-  <section className="chapter experiment-chapter" id="experiments"><div className="section-kicker"><span>02 / THE PLAYGROUND</span><span>ALWAYS IN PROGRESS</span></div><div className="experiment-layout"><div><p className="micro-label"><i/> NO FIXED OUTCOME</p><h2>LET THE<br/>UNEXPECTED<br/><em>IN.</em></h2></div><div className="experiment-text"><p>What happens when the interface becomes a material? When light behaves like liquid, type has a pulse, and every movement leaves a trace?</p><p>We prototype strange ideas, build playful systems and follow the moments that surprise us.</p><button className="outline-cta" onClick={()=>go("STUDIO")}>MEET THE STUDIO <ArrowUpRight size={15}/></button></div></div><div className="experiment-orbit"><span>CODE IS A MATERIAL</span><span>PLAY IS A METHOD</span><span>WONDER IS THE POINT</span></div></section>
-  <section className="chapter studio-chapter" id="studio"><div className="section-kicker"><span>03 / THE STUDIO</span><span>DESIGN × TECHNOLOGY × MOTION</span></div><p className="micro-label"><i/> SMALL TEAM. BIG CURIOSITY.</p><h2>WE MAKE<br/>THE DIGITAL<br/><em>FEEL ALIVE.</em></h2><div className="studio-bottom"><p>FORM—FIELD is an independent creative technology studio exploring the space between design and engineering. We build immersive websites, interactive installations and generative experiences.</p><div className="capability-list"><span>01&nbsp; CREATIVE DEVELOPMENT</span><span>02&nbsp; REALTIME 3D & WEBGL</span><span>03&nbsp; INTERACTIVE STORYTELLING</span><span>04&nbsp; GENERATIVE SYSTEMS</span></div></div></section>
-  <section className="chapter contact-chapter" id="contact"><div className="section-kicker"><span>04 / YOUR MOVE</span><span>END OF TRANSMISSION · BEGINNING OF SOMETHING</span></div><p className="micro-label"><i/> HAVE AN IDEA?</p><h2>LET'S MAKE<br/><em>IT MATTER.</em></h2><p className="contact-copy">Have a strange idea, a difficult problem or a world that should exist? Let's build it.</p><a className="contact-button" href="mailto:hello@formfield.studio">START A CONVERSATION <ArrowUpRight size={17}/></a><div className="footer-meta"><a className="brand-mark" href="#home" onClick={e=>{e.preventDefault();go("HOME");}}>FORM<span>·</span>FIELD</a><span>INDEPENDENT DIGITAL STUDIO / 2026</span><button onClick={()=>go("HOME")}>BACK TO THE TOP ↑</button></div></section>
-  <div className="fixed-scroll-hint"><span>{active}</span><span>SCROLL / EXPLORE</span></div>
- </main>;
+
+import { useEffect, useState } from "react";
+import { ArrowDown, ArrowDownRight, ArrowUpRight, Menu, X } from "lucide-react";
+import World from "./World";
+
+const sections = ["WORK", "EXPERIMENTS", "STUDIO", "CONTACT"];
+
+export default function Home() {
+  const [active, setActive] = useState("HOME");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const nodes = ["home", "work", "experiments", "studio", "contact"]
+      .map((id) => document.getElementById(id))
+      .filter((node): node is HTMLElement => Boolean(node));
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible) setActive(visible.target.id.toUpperCase());
+    }, { rootMargin: "-38% 0px -48% 0px", threshold: [0, 0.15, 0.35, 0.6] });
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+
+  const go = (id: string) => {
+    document.getElementById(id.toLowerCase())?.scrollIntoView({ behavior: "smooth" });
+    setMenuOpen(false);
+  };
+
+  return (
+    <main className="site-shell">
+      <World />
+      <div className="grain" />
+      <header className="topbar">
+        <a className="wordmark" href="#home" onClick={(e) => { e.preventDefault(); go("HOME"); }}>FORM<span>·</span>FIELD</a>
+        <nav className="desktop-nav" aria-label="Main navigation">
+          {sections.map((section, index) => (
+            <button key={section} className={active === section ? "selected" : ""} onClick={() => go(section)}>
+              <small>0{index + 1}</small>{section}
+            </button>
+          ))}
+        </nav>
+        <button className="contact-nav" onClick={() => go("CONTACT")}>LET&apos;S TALK <ArrowUpRight size={15} /></button>
+        <button className="menu-toggle" aria-label="Toggle navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? <X /> : <Menu />}
+        </button>
+        {menuOpen && <nav className="mobile-nav" aria-label="Mobile navigation">
+          {["HOME", ...sections].map((section, index) => (
+            <button key={section} onClick={() => go(section)}><span>0{index + 1}</span>{section}<ArrowUpRight size={15} /></button>
+          ))}
+        </nav>}
+      </header>
+      <div className="progress-track"><span style={{ transform: `scaleX(${(["HOME", ...sections].indexOf(active)) / 4})` }} /></div>
+
+      <section className="panel hero" id="home">
+        <div className="eyebrow"><span className="live-dot" /> INDEPENDENT CREATIVE TECHNOLOGY STUDIO <span>HYDERABAD / EVERYWHERE</span></div>
+        <div className="hero-content">
+          <p className="overline">A DIGITAL WORLD IN CONSTANT MOTION</p>
+          <h1>MAKE<br /><em>WONDER</em><br />HAPPEN<span className="period">.</span></h1>
+          <div className="hero-bottom">
+            <p>We create immersive digital experiences where design, technology and imagination become one.</p>
+            <button className="round-link" onClick={() => go("WORK")} aria-label="Explore selected work"><ArrowDown size={22} /></button>
+          </div>
+        </div>
+        <div className="hero-index">01 <span>/ 05</span></div>
+        <div className="hero-side">SCROLL TO MOVE THROUGH THE FIELD</div>
+      </section>
+
+      <section className="panel work" id="work">
+        <div className="section-meta"><span>01 — SELECTED WORLDS</span><span>DESIGN / INTERACTION / REALTIME</span></div>
+        <div className="work-heading"><p className="overline">NOT BUILT TO SIT STILL</p><h2>THE WEB<br />IS A <em>PLACE.</em></h2><p className="body-copy">We make digital spaces that invite people to look closer, move around and discover something unexpected.</p></div>
+        <div className="work-index">
+          <button onClick={() => go("EXPERIMENTS")}><span>01 / EXPERIENCE</span><strong>WORLDS<br />WITHOUT EDGES</strong><i>EXPLORE <ArrowUpRight size={16} /></i></button>
+          <button onClick={() => go("EXPERIMENTS")}><span>02 / GENERATIVE</span><strong>MATTER<br />IN MOTION</strong><i>EXPLORE <ArrowUpRight size={16} /></i></button>
+          <button onClick={() => go("EXPERIMENTS")}><span>03 / INTERACTION</span><strong>TOUCH THE<br />IMPOSSIBLE</strong><i>EXPLORE <ArrowUpRight size={16} /></i></button>
+        </div>
+        <div className="section-foot"><span>FORM FOLLOWS FEELING</span><span>01 / 04</span></div>
+      </section>
+
+      <section className="panel experiments" id="experiments">
+        <div className="section-meta"><span>02 — THE PLAYGROUND</span><span>ALWAYS IN PROGRESS</span></div>
+        <div className="experiment-content"><div><p className="overline">NO FIXED OUTCOME</p><h2>CURIOUS<br />BY <em>NATURE.</em></h2></div><div className="experiment-copy"><p>What if a website behaved like a material? What if light could flow, geometry could breathe and every movement left a trace?</p><p>We explore the space between code and sensation — building tools, systems and strange little worlds just to see what happens.</p><button className="text-link" onClick={() => go("STUDIO")}>INSIDE THE STUDIO <ArrowUpRight size={16} /></button></div></div>
+        <div className="manifesto"><span>CODE IS A MATERIAL</span><span>PLAY IS A METHOD</span><span>WONDER IS THE POINT</span></div>
+      </section>
+
+      <section className="panel studio" id="studio">
+        <div className="section-meta"><span>03 — THE STUDIO</span><span>DESIGN × TECHNOLOGY × MOTION</span></div>
+        <p className="overline">SMALL TEAM. BIG CURIOSITY.</p>
+        <h2>WE MAKE<br />THE DIGITAL<br /><em>FEEL ALIVE.</em></h2>
+        <div className="studio-bottom"><p>FORM·FIELD is an independent creative technology studio exploring the space between design and engineering. We build immersive websites, interactive installations and generative experiences.</p><div className="capabilities"><span>01&nbsp; CREATIVE DEVELOPMENT</span><span>02&nbsp; REALTIME 3D & WEBGL</span><span>03&nbsp; INTERACTIVE STORYTELLING</span><span>04&nbsp; GENERATIVE SYSTEMS</span></div></div>
+      </section>
+
+      <section className="panel contact" id="contact">
+        <div className="section-meta"><span>04 — YOUR MOVE</span><span>END OF TRANSMISSION / BEGINNING OF SOMETHING</span></div>
+        <p className="overline">HAVE AN IDEA?</p>
+        <h2>LET&apos;S MAKE<br /><em>IT MATTER.</em></h2>
+        <p className="contact-copy">A strange idea. A difficult problem. A world that should exist. Tell us about it.</p>
+        <a className="contact-button" href="mailto:hello@formfield.studio">START A CONVERSATION <ArrowUpRight size={17} /></a>
+        <footer><a className="wordmark" href="#home" onClick={(e) => { e.preventDefault(); go("HOME"); }}>FORM<span>·</span>FIELD</a><span>INDEPENDENT DIGITAL STUDIO / 2026</span><button onClick={() => go("HOME")}>BACK TO THE TOP ↑</button></footer>
+      </section>
+      <div className="scroll-label"><span>{active}</span><span>SCROLL / EXPLORE</span></div>
+    </main>
+  );
 }
