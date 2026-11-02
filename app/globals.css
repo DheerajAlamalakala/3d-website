@@ -36,3 +36,37 @@ button{font:inherit}
 @media(max-width:900px){.desktop-nav{gap:18px;margin-left:0}.hero-content{left:8%;width:65%}.manifesto,.work-section,.experiments,.site-footer{padding-left:8%;padding-right:8%}.project-visual{height:290px}.project-info{display:block}.project-info>p{margin:5px 0;max-width:200px}}
 @media(max-width:650px){.site-nav{height:68px;padding:0 6%}.desktop-nav,.nav-contact{display:none}.menu-toggle{display:block;border:0;background:none;color:#fff}.mobile-nav{display:flex;position:absolute;top:68px;left:0;width:100%;padding:25px 7%;background:#0c0d13;flex-direction:column;gap:22px;border-bottom:1px solid var(--line)}.mobile-nav a{font:11px 'DM Mono',monospace;letter-spacing:.12em}.hero{min-height:740px}.hero-topline{top:95px;left:6%;right:6%;font-size:7px}.hero-content{left:7%;top:26%;width:85%}.hero h1{font-size:clamp(68px,16vw,104px);margin:30px 0}.hero-bottom-copy{display:block;margin-top:32px}.hero-bottom-copy p{max-width:275px;margin-bottom:22px}.hero-index{left:6%;right:6%;bottom:30px;font-size:7px}.hero-scroll{right:6%;bottom:58px;font-size:7px}.canvas-caption{right:6%;bottom:15%;font-size:7px;gap:10px}.sound-control{top:82px;right:6%}.hero-overlay{background:linear-gradient(90deg,rgba(8,9,13,.94),rgba(8,9,13,.5) 75%,rgba(8,9,13,.18)),linear-gradient(0deg,rgba(8,9,13,.8),transparent 30%)}.manifesto,.work-section,.experiments,.site-footer{padding-left:7%;padding-right:7%}.manifesto{padding-top:85px}.manifesto-grid,.experiment-grid{grid-template-columns:1fr;gap:55px;padding:65px 0 75px}.manifesto-label{font-size:clamp(48px,12vw,76px)}.manifesto-copy{padding:0}.section-meta{font-size:7px;gap:15px}.section-meta span:last-child{text-align:right}.work-section{padding-top:85px;padding-bottom:90px}.work-heading{display:block;padding:60px 0}.work-heading h2,.experiment-grid h2{font-size:clamp(58px,13vw,86px)}.work-heading p{margin:28px 0 0}.project-list{grid-template-columns:1fr;gap:35px}.project-visual{height:340px}.project-info{display:flex}.project-info>p{margin:30px 0 0;max-width:120px}.experiments{padding-top:85px}.experiment-grid{padding:65px 0 80px}.experiment-copy{padding:0}.site-footer{padding-top:85px}.footer-kicker{margin-top:75px}.site-footer h2{font-size:clamp(62px,14vw,94px)}.footer-contact{margin:40px 0 70px}.footer-bottom{flex-wrap:wrap;gap:18px;font-size:7px}.footer-bottom span{order:3;width:100%}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* Interactive WebGL scene: keep the canvas above the hero background, below the copy. */
+.experience-canvas{z-index:0;isolation:isolate}
+.experience-canvas canvas{pointer-events:none}
+.experience-canvas.webgl-ready .canvas-fallback-shape{display:none}
+.hero-overlay{z-index:1}
+.hero-content,.hero-topline,.hero-index,.hero-scroll,.canvas-caption,.sound-control{z-index:3}
+.canvas-caption{pointer-events:none;text-shadow:0 1px 14px rgba(0,0,0,.8)}
+.sound-control{cursor:pointer;pointer-events:auto;transition:background .25s,border-color .25s,color .25s}
+.sound-control:hover{background:rgba(176,151,255,.16);border-color:rgba(190,171,255,.72);color:#fff}
+.experience-canvas.webgl-fallback{z-index:0}
+.experience-canvas.webgl-fallback .canvas-fallback-shape{display:block;opacity:.88;filter:blur(0);box-shadow:0 0 100px rgba(171,144,255,.18)}
+.project-card{transform:translateY(0);transition:transform .55s cubic-bezier(.2,.7,.2,1)}
+.project-card:hover{transform:translateY(-9px)}
+.project-visual{perspective:900px}
+.visual-object{transform-style:preserve-3d;transition:filter .6s,box-shadow .6s}
+.project-card:hover .visual-object{transform:scale(1.12) rotate3d(1,1,0,12deg);filter:brightness(1.24) saturate(1.18);box-shadow:inset -18px -20px 38px rgba(0,0,0,.52),inset 10px 10px 22px rgba(255,255,255,.58),0 0 100px rgba(161,139,255,.35)}
+.project-card:hover .visual-orbit{animation:orbit-turn 8s linear infinite}
+.project-card:hover .orbit-b{animation-direction:reverse}
+.visual-open{transition:background .3s,transform .3s}
+.project-card:hover .visual-open{background:rgba(188,170,255,.17);transform:rotate(45deg)}
+.hero h1 em{background:linear-gradient(110deg,#e9e1ff 0%,#9f8bff 38%,#c7e8f1 68%,#f2c2e4 100%);background-size:200% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;animation:iridescent-shift 8s ease-in-out infinite}
+.experiment-marquee:hover div{animation-play-state:paused}
+@keyframes orbit-turn{to{transform:rotateX(68deg) rotate(332deg)}}
+@keyframes iridescent-shift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@media(max-width:650px){
+ .hero-content,.hero-topline,.hero-index,.hero-scroll,.canvas-caption,.sound-control{z-index:3}
+ .canvas-caption{right:7%;bottom:15%;font-size:7px}
+ .sound-control{top:82px;right:6%}
+}
+@media(prefers-reduced-motion:reduce){
+ .hero h1 em{animation:none}
+ .project-card,.visual-object{transition:none}
+}
