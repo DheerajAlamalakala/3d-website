@@ -99,7 +99,8 @@ function AnatomyStage() {
             vNormal=normalize(normalMatrix*normal);
             vec3 p=position;
             float wave=sin(p.y*5.0+uTime*.55)*cos(p.x*4.0-uTime*.32);
-            p+=normal*wave*.025;
+            float breathing=sin(uTime*.38+p.y*2.0)*.018;
+            p+=normal*(wave*.025+breathing+uScroll*.035);
             vPosition=p;
             vec4 world=modelMatrix*vec4(p,1.0);
             vWorld=world.xyz;
@@ -125,6 +126,15 @@ function AnatomyStage() {
             vec3 color=mix(deep,blue,smoothstep(.12,.9,bands)*.55);
             color=mix(color,violet,smoothstep(.25,.95,n.x*.5+.5)*.38);
             color=mix(color,pearl,fresnel*.9);
+            vec3 neural=vec3(.16,.52,.62);
+            vec3 vascular=vec3(.52,.16,.24);
+            vec3 cellular=vec3(.34,.42,.28);
+            float chapterA=smoothstep(.12,.42,uScroll);
+            float chapterB=smoothstep(.42,.72,uScroll);
+            float chapterC=smoothstep(.72,.98,uScroll);
+            color=mix(color,neural,chapterA*.32);
+            color=mix(color,vascular,chapterB*.42);
+            color=mix(color,cellular,chapterC*.36);
             color+=vec3(.08,.35,.42)*pow(max(dot(reflect(-viewDir,n),normalize(vec3(.5,.8,1.0))),0.0),7.0);
             float alpha=.72+fresnel*.28;
             gl_FragColor=vec4(color,alpha);
