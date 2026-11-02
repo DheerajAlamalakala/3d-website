@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VITAL/FORM — The Human Body, Reimagined",
-  description: "An immersive, futuristic exploration of human anatomy, biological systems and the living architecture beneath the surface.",
+  title: "FORM—FIELD | Independent Digital Studio",
+  description: "An experimental digital studio building immersive worlds, generative systems and interactive experiences.",
   openGraph: {
-    title: "VITAL/FORM — The Human Body, Reimagined",
-    description: "Explore the human body through an immersive interactive anatomy experience.",
+    title: "FORM—FIELD | Independent Digital Studio",
+    description: "A living digital experience shaped by code, design, light and motion.",
     type: "website",
   },
 };
